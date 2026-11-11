@@ -1,0 +1,158 @@
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatCurrency(amount?: number | null): string {
+  if (amount === null || amount === undefined || isNaN(amount)) return '0 đ';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export function getVietnamTime(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || '00';
+  let hour = get('hour');
+  if (hour === '24') hour = '00';
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hours: hour,
+    minutes: get('minute'),
+    seconds: get('second'),
+  };
+}
+
+export function parseOrderDate(dateInput?: string | null | Date): Date {
+  if (!dateInput) return new Date();
+  if (dateInput instanceof Date) return dateInput;
+  if (typeof dateInput !== 'string') return new Date(dateInput);
+
+  // Match standard YYYY-MM-DD[T ]HH:mm:ss (ignoring any appended timezone like +00:00 or Z)
+  // This preserves the exact Vietnam calendar date and clock time stored in DB / sent from client
+  const matchWithTime = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (matchWithTime) {
+    const [, y, m, d, h, min, s] = matchWithTime;
+    return new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(s || 0));
+  }
+
+  const matchDateOnly = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (matchDateOnly) {
+    const [, y, m, d] = matchDateOnly;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+
+  return new Date(dateInput);
+}
+
+export function getItemAttribution(
+  item: { notes?: string | null },
+  orderCreatorName?: string | null
+): { staffName: string; itemNote: string } {
+  const rawNotes = item.notes || '';
+  const match = rawNotes.match(/(?:Thêm bởi|Bởi):\s*([^|]+)/i);
+  if (match) {
+    const staffName = match[1].trim();
+    const itemNote = rawNotes
+      .replace(/(?:\|?\s*)?(?:Thêm bởi|Bởi):\s*[^|]+/gi, '')
+      .replace(/^\||\|$/g, '')
+      .trim();
+    return { staffName, itemNote };
+  }
+  return {
+    staffName: orderCreatorName || 'Người mở bàn',
+    itemNote: rawNotes.trim(),
+  };
+}
+
+export function formatDateTime(isoString?: string | null): string {
+  if (!isoString) return '--';
+  const date = parseOrderDate(isoString);
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
+export function formatTime(isoString?: string | null): string {
+  if (!isoString) return '--';
+  const date = parseOrderDate(isoString);
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+export function formatDate(isoString?: string | null): string {
+  if (!isoString) return '--';
+  const date = parseOrderDate(isoString);
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
+export function generateOrderNumber(): string {
+  const randomNum = Math.floor(100 + Math.random() * 900);
+  return `#${randomNum}`;
+}
+
+export function getLocalTimestamp(date = new Date()): string {
+  const vn = getVietnamTime(date);
+  return `${vn.year}-${vn.month}-${vn.day}T${vn.hours}:${vn.minutes}:${vn.seconds}`;
+}
+
+export function getLocalDateString(dateInput?: string | null | Date): string {
+  if (!dateInput) {
+    const vn = getVietnamTime();
+    return `${vn.year}-${vn.month}-${vn.day}`;
+  }
+  try {
+    const d = parseOrderDate(dateInput);
+    if (isNaN(d.getTime())) {
+      return typeof dateInput === 'string' ? dateInput.slice(0, 10) : '';
+    }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  } catch {
+    return typeof dateInput === 'string' ? dateInput.slice(0, 10) : '';
+  }
+}
+
+export function getVietQRUrl({
+  bankId = process.env.NEXT_PUBLIC_VIETQR_BANK_ID || 'MB',
+  accountNo = process.env.NEXT_PUBLIC_VIETQR_ACCOUNT_NO || '0388888888',
+  accountName = process.env.NEXT_PUBLIC_VIETQR_ACCOUNT_NAME || 'QUAN CA PHE',
+  amount,
+  orderNumber,
+}: {
+  bankId?: string;
+  accountNo?: string;
+  accountName?: string;
+  amount: number;
+  orderNumber: string;
+}): string {
+  const memo = encodeURIComponent(`Thanh toan don ${orderNumber}`);
+  const encodedName = encodeURIComponent(accountName);
+  return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.jpg?amount=${amount}&addInfo=${memo}&accountName=${encodedName}`;
+}
