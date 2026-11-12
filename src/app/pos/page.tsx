@@ -409,7 +409,7 @@ export default function PosPage() {
         });
 
         if (isTakeaway) {
-          setSuccessBanner(`Đơn mang về ${newOrder.order_number} đã được tạo và tự động chuyển sang tab "Xác nhận thanh toán"!`);
+          setSuccessBanner(`Đơn mang về ${newOrder.order_number} đã được tạo`);
         } else {
           setSuccessBanner(`Đã lưu đơn ${newOrder.order_number} (bàn "${currentTableName}") và chuyển bếp thành công!`);
         }
@@ -418,13 +418,15 @@ export default function PosPage() {
       handleClearCart();
       setIsMobileCartOpen(false);
 
-      if (isTakeaway) {
-        // Đơn mang đi sẽ tự chuyển qua tab "xác nhận thanh toán" ở trang quản trị
-        router.push('/pos/confirmations');
-      } else {
-        // Đơn tại bàn chuyển qua màn hình sơ đồ bàn
-        setPosViewMode('tables');
-      }
+      setPosViewMode('tables');
+
+      // if (isTakeaway) {
+      //   // Đơn mang đi sẽ tự chuyển qua tab "xác nhận thanh toán" ở trang quản trị
+      //   router.push('/pos/confirmations');
+      // } else {
+      //   // Đơn tại bàn chuyển qua màn hình sơ đồ bàn
+      //   setPosViewMode('tables');
+      // }
 
       await loadData();
       setTimeout(() => setSuccessBanner(null), 6000);
