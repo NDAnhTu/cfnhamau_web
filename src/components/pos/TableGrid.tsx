@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ActiveTableInfo, Order } from '@/types/database';
+import { ActiveTableInfo, Order, OrderItem } from '@/types/database';
 import { formatCurrency, formatTime, getItemAttribution } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 import {
   Utensils,
   PlusCircle,
@@ -16,6 +17,7 @@ import {
   Search,
   Sparkles,
   ShoppingBag,
+  Trash2,
   X,
 } from 'lucide-react';
 
@@ -26,6 +28,12 @@ interface TableGridProps {
   onCheckoutTable: (tableInfo: ActiveTableInfo) => void;
   onPrintReceipt: (order: Order) => void;
   onQuickNewTable: (tableName: string, isTakeaway?: boolean) => void;
+  onDeleteOrderItem?: (
+    orderId: number,
+    itemId: number,
+    itemName: string,
+    reduceOnly?: boolean
+  ) => Promise<boolean>;
 }
 
 export function TableGrid({
@@ -35,11 +43,16 @@ export function TableGrid({
   onCheckoutTable,
   onPrintReceipt,
   onQuickNewTable,
+  onDeleteOrderItem,
 }: TableGridProps) {
+  const { user, isOwner } = useAuth();
+  const isAdmin = isOwner || user?.role === 'owner';
+
   const [search, setSearch] = useState('');
   const [isNewTableModalOpen, setIsNewTableModalOpen] = useState(false);
   const [newTableName, setNewTableName] = useState('');
   const [selectedTableDetail, setSelectedTableDetail] = useState<ActiveTableInfo | null>(null);
+  const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
 
   const activeModalTable = selectedTableDetail
     ? tables.find(
@@ -66,6 +79,52 @@ export function TableGrid({
     onQuickNewTable(newTableName.trim(), false);
     setNewTableName('');
     setIsNewTableModalOpen(false);
+  };
+
+  const handleDeleteItem = async (item: OrderItem, reduceOnly = false) => {
+    if (!activeModalTable?.activeOrder || !onDeleteOrderItem) return;
+    const orderId = activeModalTable.activeOrder.id;
+    const totalItemsCount = activeModalTable.activeOrder.items?.length || 0;
+    const tableName = activeModalTable.table.name;
+
+    if (reduceOnly) {
+      if (!confirm(`Bạn có chắc muốn giảm 1 ly "${item.item_name}" của bàn "${tableName}"?`)) return;
+    } else {
+      if (totalItemsCount <= 1) {
+        if (
+          !confirm(
+            `Đây là món cuối cùng trong đơn của bàn "${tableName}".\n\nXóa món này sẽ HỦY/XÓA toàn bộ đơn hàng của bàn.\nBạn có chắc chắn muốn xóa không?`
+          )
+        ) {
+          return;
+        }
+      } else {
+        if (
+          !confirm(
+            `Bạn có chắc chắn muốn xóa "${item.item_name}"${
+              item.quantity > 1 ? ` (${item.quantity} ly)` : ''
+            } khỏi đơn bàn "${tableName}" không?`
+          )
+        ) {
+          return;
+        }
+      }
+    }
+
+    setDeletingItemId(item.id);
+    try {
+      const orderStillExists = await onDeleteOrderItem(
+        orderId,
+        item.id,
+        item.item_name,
+        reduceOnly
+      );
+      if (!orderStillExists || (totalItemsCount <= 1 && !reduceOnly)) {
+        setSelectedTableDetail(null);
+      }
+    } finally {
+      setDeletingItemId(null);
+    }
   };
 
   const handleQuickTakeaway = () => {
@@ -319,13 +378,41 @@ export function TableGrid({
                             </div>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-xs text-slate-400">
-                            {formatCurrency(item.unit_price)}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <div className="text-right">
+                            <div className="text-xs text-slate-400">
+                              {formatCurrency(item.unit_price)}
+                            </div>
+                            <div className="font-bold text-sm text-slate-800 dark:text-slate-100">
+                              {formatCurrency(item.subtotal)}
+                            </div>
                           </div>
-                          <div className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                            {formatCurrency(item.subtotal)}
-                          </div>
+
+                          {/* Delete & Reduce Actions for Admin */}
+                          {isAdmin && onDeleteOrderItem && (
+                            <div className="flex items-center gap-1 pl-1.5 border-l border-slate-100 dark:border-slate-700/60">
+                              {item.quantity > 1 && (
+                                <button
+                                  type="button"
+                                  disabled={deletingItemId === item.id}
+                                  onClick={() => handleDeleteItem(item, true)}
+                                  className="px-1.5 py-1 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-xs font-black transition-colors"
+                                  title="Giảm 1 ly"
+                                >
+                                  -1
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={deletingItemId === item.id}
+                                onClick={() => handleDeleteItem(item, false)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                title="Xóa món này khỏi đơn"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

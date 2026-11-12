@@ -246,7 +246,30 @@ export const DataService = {
         .order('display_order', { ascending: true });
       if (!error && data) return data as Category[];
     }
-    return getLocal<Category[]>(STORAGE_KEYS.CATEGORIES, initialCategories);
+    const local = getLocal<Category[]>(STORAGE_KEYS.CATEGORIES, initialCategories);
+    return [...local].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  },
+
+  async reorderCategories(orderedCategories: { id: number; display_order: number }[]): Promise<Category[]> {
+    const categories = await this.getCategories();
+    const updated = categories.map((c) => {
+      const match = orderedCategories.find((oc) => oc.id === c.id);
+      return match ? { ...c, display_order: match.display_order } : c;
+    });
+
+    updated.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    setLocal(STORAGE_KEYS.CATEGORIES, updated);
+
+    if (this.isCloudConnected()) {
+      const supabase = createClient();
+      await Promise.all(
+        orderedCategories.map((oc) =>
+          supabase.from('categories').update({ display_order: oc.display_order }).eq('id', oc.id)
+        )
+      );
+    }
+
+    return updated;
   },
 
   async saveCategory(category: Partial<Category> & { name: string }): Promise<Category> {
@@ -1452,6 +1475,94 @@ export const DataService = {
     return { paidOrder: newPaidOrder, remainingOrder: updatedOriginalOrder };
   },
 
+  async removeOrderItem(
+    orderId: number,
+    itemId: number,
+    reduceOnly = false
+  ): Promise<Order | null> {
+    const orders = await this.getOrders();
+    const order = orders.find((o) => Number(o.id) === Number(orderId));
+    if (!order) throw new Error('Không tìm thấy đơn hàng');
+
+    const itemIndex = (order.items || []).findIndex(
+      (i) => Number(i.id) === Number(itemId)
+    );
+    if (itemIndex === -1) throw new Error('Không tìm thấy món cần xoá');
+
+    const targetItem = order.items![itemIndex];
+    let remainingItems: typeof order.items = [];
+
+    if (reduceOnly && targetItem.quantity > 1) {
+      const newQty = targetItem.quantity - 1;
+      const newSubtotal = newQty * Number(targetItem.unit_price);
+      const updatedItem = {
+        ...targetItem,
+        quantity: newQty,
+        subtotal: newSubtotal,
+      };
+
+      remainingItems = order.items!.map((i, idx) =>
+        idx === itemIndex ? updatedItem : i
+      );
+
+      if (this.isCloudConnected()) {
+        const supabase = createClient();
+        await supabase
+          .from('order_items')
+          .update({
+            quantity: newQty,
+            subtotal: newSubtotal,
+          })
+          .eq('id', itemId);
+      }
+    } else {
+      // Xoá hoàn toàn món này
+      remainingItems = order.items!.filter((_, idx) => idx !== itemIndex);
+
+      if (this.isCloudConnected()) {
+        const supabase = createClient();
+        await supabase.from('order_items').delete().eq('id', itemId);
+      }
+    }
+
+    // Nếu không còn món nào trong đơn
+    if (remainingItems.length === 0) {
+      await this.deleteOrder(orderId);
+      return null;
+    }
+
+    const newTotal = remainingItems.reduce(
+      (acc, i) => acc + (Number(i.subtotal) || Number(i.unit_price) * i.quantity),
+      0
+    );
+    const newFinal = Math.max(0, newTotal - (order.discount_amount || 0));
+
+    if (this.isCloudConnected()) {
+      const supabase = createClient();
+      await supabase
+        .from('orders')
+        .update({
+          total_amount: newTotal,
+          final_amount: newFinal,
+        })
+        .eq('id', orderId);
+    }
+
+    const updatedOrder: Order = {
+      ...order,
+      total_amount: newTotal,
+      final_amount: newFinal,
+      items: remainingItems,
+    };
+
+    const updatedOrders = orders.map((o) =>
+      Number(o.id) === Number(orderId) ? updatedOrder : o
+    );
+    setLocal(STORAGE_KEYS.ORDERS, updatedOrders);
+
+    return updatedOrder;
+  },
+
   async deleteOrder(orderId: number): Promise<void> {
     if (this.isCloudConnected()) {
       const supabase = createClient();
@@ -1479,11 +1590,30 @@ export const DataService = {
         .select(`*, profiles(id, full_name)`)
         .order('id', { ascending: false });
       if (!error && data) {
-        return data.map((t: any) => ({ ...t, creator: t.profiles })) as CashTransaction[];
+        return data.map((t: any) => {
+          let createdAt = t.created_at;
+          if (typeof createdAt === 'string' && (createdAt.includes('Z') || /\.\d+/.test(createdAt))) {
+            const d = new Date(createdAt);
+            if (!isNaN(d.getTime())) {
+              createdAt = getLocalTimestamp(d);
+            }
+          }
+          return { ...t, created_at: createdAt, creator: t.profiles };
+        }) as CashTransaction[];
       }
       return [];
     }
-    return getLocal<CashTransaction[]>(STORAGE_KEYS.CASH, initialCashTransactions);
+    const local = getLocal<CashTransaction[]>(STORAGE_KEYS.CASH, initialCashTransactions);
+    return local.map((t) => {
+      let createdAt = t.created_at;
+      if (typeof createdAt === 'string' && (createdAt.includes('Z') || /\.\d+/.test(createdAt))) {
+        const d = new Date(createdAt);
+        if (!isNaN(d.getTime())) {
+          createdAt = getLocalTimestamp(d);
+        }
+      }
+      return { ...t, created_at: createdAt };
+    });
   },
 
   async createCashTransaction(data: {
@@ -1500,6 +1630,7 @@ export const DataService = {
     const creator = profiles.find((p) => p.id === data.createdBy) || profiles[0];
     const nextId = Math.max(...list.map((t) => t.id), 0) + 1;
     const dateStr = data.transactionDate || getLocalDateString();
+    const currentLocalTimestamp = getLocalTimestamp();
 
     const newTxn: CashTransaction = {
       id: nextId,
@@ -1511,7 +1642,7 @@ export const DataService = {
       created_by: data.createdBy,
       creator,
       transaction_date: dateStr,
-      created_at: getLocalTimestamp(),
+      created_at: currentLocalTimestamp,
     };
 
     if (this.isCloudConnected()) {
@@ -1526,6 +1657,7 @@ export const DataService = {
           description: data.description,
           created_by: toSafeUUID(data.createdBy),
           transaction_date: dateStr,
+          created_at: currentLocalTimestamp,
         })
         .select()
         .single();

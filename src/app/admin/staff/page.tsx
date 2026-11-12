@@ -207,7 +207,7 @@ export default function AdminStaffPage() {
       setTimeout(() => {
         setIsModalOpen(false);
         setMsg(null);
-      }, 1500);
+      }, 1000);
     } catch (err: any) {
       setMsg({ text: err.message || 'Lỗi khi thêm nhân viên', type: 'error' });
     } finally {

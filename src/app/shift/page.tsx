@@ -39,7 +39,6 @@ export default function DailyExpensesPage() {
   // Modal create expense
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [amountStr, setAmountStr] = useState('');
-  const [category, setCategory] = useState('tien_da');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -69,7 +68,7 @@ export default function DailyExpensesPage() {
       return;
     }
     if (!description.trim()) {
-      setErrorMsg('Vui lòng nhập diễn giải chi tiết cho khoản chi này');
+      setErrorMsg('Vui lòng nhập lý do chi');
       return;
     }
 
@@ -82,7 +81,7 @@ export default function DailyExpensesPage() {
     try {
       await DataService.createCashTransaction({
         type: 'expense',
-        category,
+        category: 'khac',
         amount,
         description: description.trim(),
         createdBy: user.id,
@@ -217,15 +216,12 @@ export default function DailyExpensesPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900 dark:text-white text-sm">
-                          {cat?.label || item.category}
+                          {item.description || cat?.label || 'Khoản chi'}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 font-semibold">
                           {formatTime(item.created_at)}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                        {item.description}
-                      </p>
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
                         <User className="w-3 h-3" />
                         <span>Người lập: <strong>{item.creator?.full_name || 'Nhân viên'}</strong></span>
@@ -313,29 +309,12 @@ export default function DailyExpensesPage() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-                  Danh mục chi *
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500"
-                >
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icon} {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-                  Diễn giải chi tiết *
+                  Lý do chi *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="VD: Mua 2 bao đá bi ca trưa..."
+                  placeholder="VD: Mua 2 bao đá bi, mua sữa đặc, tiền điện..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-rose-500"

@@ -72,7 +72,7 @@ export default function PosConfirmationsPage() {
       );
       setSelectedOrder(null);
       await loadOrders();
-      setTimeout(() => setBanner(null), 6000);
+      setTimeout(() => setBanner(null), 1000);
     } catch (e: any) {
       alert('Lỗi xác nhận tiền: ' + e.message);
     } finally {
@@ -97,7 +97,7 @@ export default function PosConfirmationsPage() {
       );
       setSelectedOrder(null);
       await loadOrders();
-      setTimeout(() => setBanner(null), 5000);
+      setTimeout(() => setBanner(null), 1000);
     } catch (e: any) {
       alert('Lỗi: ' + e.message);
     }
@@ -117,7 +117,7 @@ export default function PosConfirmationsPage() {
       setBanner(`Đã xóa vĩnh viễn đơn hàng ${order.order_number} thành công!`);
       setSelectedOrder(null);
       await loadOrders();
-      setTimeout(() => setBanner(null), 5000);
+      setTimeout(() => setBanner(null), 1000);
     } catch (e: any) {
       alert('Lỗi: ' + e.message);
     }
@@ -194,13 +194,13 @@ export default function PosConfirmationsPage() {
                 >
                   <div className="flex items-start justify-between gap-3 mb-2.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-base font-black text-slate-900 dark:text-white">
-                        {order.order_number}
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
                         {order.order_type === 'dine_in'
                           ? order.table_name || order.table?.name || 'Tại bàn'
                           : 'Mang đi'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                        {order.order_number}
                       </span>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
                         <Clock className="w-3 h-3 text-amber-500" />
@@ -265,12 +265,18 @@ export default function PosConfirmationsPage() {
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
               <div className="border-b border-slate-100 dark:border-slate-700 pb-3 flex justify-between items-start">
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                    Chi Tiết {selectedOrder.order_number}
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Bàn: {selectedOrder.table_name || selectedOrder.table?.name || 'Tại bàn'} • Lúc{' '}
-                    {formatDateTime(selectedOrder.created_at)}
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                      {selectedOrder.order_type === 'dine_in'
+                        ? selectedOrder.table_name || selectedOrder.table?.name || 'Tại bàn'
+                        : 'Mang đi'}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                      {selectedOrder.order_number}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Thời gian: {formatDateTime(selectedOrder.created_at)}
                   </p>
                 </div>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
@@ -396,12 +402,18 @@ export default function PosConfirmationsPage() {
           <div className="w-full sm:max-w-lg bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="border-b border-slate-100 dark:border-slate-700 pb-3 flex justify-between items-start">
               <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                  Chi Tiết {selectedOrder.order_number}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Bàn: {selectedOrder.table_name || selectedOrder.table?.name || 'Tại bàn'} • Lúc{' '}
-                  {formatDateTime(selectedOrder.created_at)}
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    {selectedOrder.order_type === 'dine_in'
+                      ? selectedOrder.table_name || selectedOrder.table?.name || 'Tại bàn'
+                      : 'Mang đi'}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                    {selectedOrder.order_number}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Thời gian: {formatDateTime(selectedOrder.created_at)}
                 </p>
               </div>
               <button

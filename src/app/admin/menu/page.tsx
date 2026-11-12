@@ -18,6 +18,9 @@ import {
   Coffee,
   ToggleLeft,
   ToggleRight,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
 } from 'lucide-react';
 
 export default function AdminMenuPage() {
@@ -31,6 +34,8 @@ export default function AdminMenuPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [catName, setCatName] = useState('');
   const [catActionLoading, setCatActionLoading] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Product Edit/Add Modal
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -204,6 +209,69 @@ export default function AdminMenuPage() {
       alert('Lỗi khi xóa danh mục: ' + err.message);
     } finally {
       setCatActionLoading(false);
+    }
+  };
+
+  const handleMoveCategory = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const reordered = [...categories];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIndex];
+    reordered[targetIndex] = temp;
+
+    // Cập nhật giao diện tức thì
+    setCategories(reordered);
+
+    try {
+      setIsReordering(true);
+      const payload = reordered.map((cat, i) => ({
+        id: cat.id,
+        display_order: i + 1,
+      }));
+      await DataService.reorderCategories(payload);
+    } catch (err: any) {
+      console.error('Lỗi sắp xếp danh mục:', err);
+      await loadMenuData();
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+    const reordered = [...categories];
+    const [movedItem] = reordered.splice(draggedIndex, 1);
+    reordered.splice(targetIndex, 0, movedItem);
+
+    setDraggedIndex(null);
+    setCategories(reordered);
+
+    try {
+      setIsReordering(true);
+      const payload = reordered.map((cat, i) => ({
+        id: cat.id,
+        display_order: i + 1,
+      }));
+      await DataService.reorderCategories(payload);
+    } catch (err: any) {
+      console.error('Lỗi kéo thả danh mục:', err);
+      await loadMenuData();
+    } finally {
+      setIsReordering(false);
     }
   };
 
@@ -687,7 +755,7 @@ export default function AdminMenuPage() {
                     Quản Lý Danh Mục Thực Đơn
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Thêm mới, đổi tên hoặc xóa các nhóm món
+                    Thêm mới, đổi tên hoặc sắp xếp thứ tự hiển thị các nhóm món
                   </p>
                 </div>
               </div>
@@ -766,32 +834,88 @@ export default function AdminMenuPage() {
             {/* Existing Categories List */}
             <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
               <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
-                <span>Danh mục hiện có ({categories.length}):</span>
-                <span className="text-[11px]">Bấm biểu tượng để Sửa hoặc Xóa</span>
+                <span className="flex items-center gap-2">
+                  <span>Danh mục hiện có ({categories.length}):</span>
+                  {isReordering && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold animate-pulse">
+                      Đang lưu thứ tự...
+                    </span>
+                  )}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Dùng nút ▲▼ hoặc kéo thả để đổi thứ tự
+                </span>
               </div>
 
-              <div className="space-y-2 overflow-y-auto pr-1 flex-1 max-h-60">
+              <div className="space-y-2 overflow-y-auto pr-1 flex-1 max-h-64">
                 {categories.length === 0 ? (
                   <p className="text-xs text-slate-400 italic text-center py-6">
                     Chưa có danh mục nào. Hãy thêm danh mục đầu tiên ở trên.
                   </p>
                 ) : (
-                  categories.map((c) => {
+                  categories.map((c, index) => {
                     const prodCount = products.filter((p) => p.category_id === c.id).length;
                     const isCurrentEditing = editingCategory?.id === c.id;
+                    const isDragged = draggedIndex === index;
+
                     return (
                       <div
                         key={c.id}
-                        className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
-                          isCurrentEditing
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, index)}
+                        className={`p-2.5 sm:p-3 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
+                          isDragged
+                            ? 'opacity-40 border-dashed border-amber-500 bg-amber-50/50 dark:bg-amber-950/20'
+                            : isCurrentEditing
                             ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-500 ring-1 ring-amber-500'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/80 hover:border-slate-300'
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        {/* Left: Reorder controls (Arrows + Drag handle + Index badge) */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Drag handle icon */}
+                          <div
+                            className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 p-0.5 hidden sm:block"
+                            title="Kéo thả để sắp xếp vị trí"
+                          >
+                            <GripVertical className="w-4 h-4" />
+                          </div>
+
+                          {/* Up & Down arrow buttons */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              disabled={index === 0 || isReordering}
+                              onClick={() => handleMoveCategory(index, 'up')}
+                              title="Chuyển lên trên"
+                              className="p-1 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-700 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === categories.length - 1 || isReordering}
+                              onClick={() => handleMoveCategory(index, 'down')}
+                              title="Chuyển xuống dưới"
+                              className="p-1 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-700 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-colors"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Order position number badge */}
+                          <span className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 font-black text-[10px] flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-600">
+                            {index + 1}
+                          </span>
+                        </div>
+
+                        {/* Middle: Name & Count */}
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                           <div className="truncate">
-                            <span className="text-xs font-black text-slate-900 dark:text-white block truncate">
+                            <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block truncate">
                               {c.name}
                             </span>
                             <span className="text-[11px] text-slate-400">
@@ -800,7 +924,8 @@ export default function AdminMenuPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Right: Edit & Delete buttons */}
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
                             title="Sửa tên danh mục"

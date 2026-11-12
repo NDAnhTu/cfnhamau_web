@@ -174,7 +174,7 @@ export default function AdminOrdersPage() {
       setActionBanner(`Đã xoá vĩnh viễn đơn hàng ${viewingOrder.order_number} thành công!`);
       setViewingOrder(null);
       await loadData();
-      setTimeout(() => setActionBanner(null), 5000);
+      setTimeout(() => setActionBanner(null), 1000);
     } catch (err: any) {
       alert('Lỗi xoá đơn hàng: ' + err.message);
     } finally {
@@ -319,7 +319,7 @@ export default function AdminOrdersPage() {
             Tìm thấy <strong className="text-slate-800 dark:text-white">{filteredOrders.length}</strong> đơn hàng phù hợp
           </span>
           <span className="font-extrabold text-amber-600 dark:text-amber-400 text-sm">
-            Tổng thực thu lọc: {formatCurrency(totalFilteredAmount)}
+            Tổng: {formatCurrency(totalFilteredAmount)}
           </span>
         </div>
       </div>
@@ -340,10 +340,10 @@ export default function AdminOrdersPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-black text-slate-900 dark:text-white text-base">
-                    {o.order_number}
-                  </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
                     {o.order_type === 'dine_in' ? o.table_name || o.table?.name || 'Tại bàn' : 'Mang về'}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                    {o.order_number}
                   </span>
                 </div>
                 <span
@@ -400,7 +400,7 @@ export default function AdminOrdersPage() {
           <table className="w-full text-xs text-left">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-850 font-bold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-4">Mã đơn & Bàn</th>
+                <th className="py-3 px-4">Bàn & Mã đơn</th>
                 <th className="py-3 px-3">Thời gian tạo</th>
                 <th className="py-3 px-3">Người tạo & Thu ngân</th>
                 <th className="py-3 px-3">Món trong đơn</th>
@@ -419,10 +419,10 @@ export default function AdminOrdersPage() {
                 >
                   <td className="py-3 px-4">
                     <span className="font-black text-slate-900 dark:text-white text-sm block">
-                      {o.order_number}
+                      {o.order_type === 'dine_in' ? o.table_name || o.table?.name || 'Tại bàn' : 'Mang đi'}
                     </span>
                     <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                      {o.order_type === 'dine_in' ? o.table_name || o.table?.name || 'Tại bàn' : 'Mang đi'}
+                      {o.order_number}
                     </span>
                   </td>
 
@@ -511,10 +511,17 @@ export default function AdminOrdersPage() {
           <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
             <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-700 pb-3">
               <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                  Chi Tiết Đơn Hàng {viewingOrder.order_number}
-                </h3>
-                <p className="text-xs text-slate-400">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    {viewingOrder.order_type === 'dine_in'
+                      ? viewingOrder.table_name || viewingOrder.table?.name || 'Tại bàn'
+                      : 'Mang về (Takeaway)'}
+                  </h3>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    {viewingOrder.order_number}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
                   Thời gian tạo: {formatDateTime(viewingOrder.created_at)}
                 </p>
               </div>

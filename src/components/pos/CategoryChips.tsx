@@ -17,6 +17,7 @@ export function CategoryChips({
   return (
     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-1">
       <button
+        type="button"
         onClick={() => onSelectCategory(null)}
         className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all shadow-sm ${
           selectedCategoryId === null
@@ -30,6 +31,7 @@ export function CategoryChips({
       {categories.map((cat) => (
         <button
           key={cat.id}
+          type="button"
           onClick={() => onSelectCategory(cat.id)}
           className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all shadow-sm ${
             selectedCategoryId === cat.id

@@ -42,6 +42,7 @@ import {
   Coffee,
   Receipt,
   User,
+  X,
 } from 'lucide-react';
 
 export default function PosPage() {
@@ -261,6 +262,8 @@ export default function PosPage() {
     setOrderType('dine_in');
     setExistingOrderId(null);
     setCart([]);
+    setSearchQuery('');
+    setSelectedCategoryId(null);
     setPosViewMode('menu');
   };
 
@@ -269,6 +272,8 @@ export default function PosPage() {
     setOrderType(isTakeaway ? 'takeaway' : 'dine_in');
     setExistingOrderId(null);
     setCart([]);
+    setSearchQuery('');
+    setSelectedCategoryId(null);
     setPosViewMode('menu');
   };
 
@@ -277,9 +282,11 @@ export default function PosPage() {
     setOrderType(tableInfo.activeOrder?.order_type || 'dine_in');
     setExistingOrderId(tableInfo.activeOrder?.id || null);
     setCart([]);
+    setSearchQuery('');
+    setSelectedCategoryId(null);
     setPosViewMode('menu');
     setSuccessBanner(`Đang gọi thêm món cho ${tableInfo.table.name} (Đơn ${tableInfo.activeOrder?.order_number})`);
-    setTimeout(() => setSuccessBanner(null), 5000);
+    setTimeout(() => setSuccessBanner(null), 1000);
   };
 
   const handleCheckoutTableFromGrid = (tableInfo: ActiveTableInfo) => {
@@ -324,7 +331,7 @@ export default function PosPage() {
     setCheckoutTarget(null);
     setPosViewMode('tables');
     await loadData();
-    setTimeout(() => setSuccessBanner(null), 6000);
+    setTimeout(() => setSuccessBanner(null), 1000);
   };
 
   const handleDeleteOrderFromPayment = async () => {
@@ -352,9 +359,35 @@ export default function PosPage() {
       setCheckoutTarget(null);
       handleClearCart();
       await loadData();
-      setTimeout(() => setSuccessBanner(null), 5000);
+      setTimeout(() => setSuccessBanner(null), 1000);
     } catch (e: any) {
       alert('Lỗi xóa đơn hàng: ' + e.message);
+    }
+  };
+
+  const handleDeleteOrderItem = async (
+    orderId: number,
+    itemId: number,
+    itemName: string,
+    reduceOnly = false
+  ): Promise<boolean> => {
+    try {
+      const updatedOrder = await DataService.removeOrderItem(orderId, itemId, reduceOnly);
+      await loadData();
+      if (updatedOrder) {
+        setSuccessBanner(
+          reduceOnly
+            ? `Đã giảm 1 ly "${itemName}" thành công!`
+            : `Đã xóa món "${itemName}" khỏi đơn hàng thành công!`
+        );
+      } else {
+        setSuccessBanner(`Đã xóa món "${itemName}" và hủy đơn hàng vì không còn món nào.`);
+      }
+      setTimeout(() => setSuccessBanner(null), 1000);
+      return Boolean(updatedOrder);
+    } catch (e: any) {
+      alert('Lỗi khi xóa món: ' + e.message);
+      return true;
     }
   };
 
@@ -429,7 +462,7 @@ export default function PosPage() {
       // }
 
       await loadData();
-      setTimeout(() => setSuccessBanner(null), 6000);
+      setTimeout(() => setSuccessBanner(null), 1000);
     } catch (e: any) {
       alert('Lỗi lưu đơn: ' + e.message);
     } finally {
@@ -482,7 +515,7 @@ export default function PosPage() {
     setCheckoutTarget(null);
     setPosViewMode('tables');
     await loadData();
-    setTimeout(() => setSuccessBanner(null), 6000);
+    setTimeout(() => setSuccessBanner(null), 1000);
   };
 
   const totalCartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
@@ -526,6 +559,8 @@ export default function PosPage() {
                 if (!confirm('Bạn có chắc muốn quay lại danh sách bàn? Các món chưa lưu trong giỏ sẽ bị hủy.')) return;
                 handleClearCart();
               }
+              setSearchQuery('');
+              setSelectedCategoryId(null);
               setPosViewMode('tables');
             }}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-amber-400 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm shadow-xs transition-all active:scale-95"
@@ -557,6 +592,7 @@ export default function PosPage() {
           onCheckoutTable={handleCheckoutTableFromGrid}
           onPrintReceipt={(order) => setReceiptOrder(order)}
           onQuickNewTable={handleQuickNewTable}
+          onDeleteOrderItem={handleDeleteOrderItem}
         />
       )}
 
@@ -574,8 +610,18 @@ export default function PosPage() {
                   placeholder="Tìm nhanh tên món (VD: Cà phê, Trà sen, Bạc xỉu...)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
+                  className="w-full pl-9 pr-9 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    title="Xóa tìm kiếm"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* Quick Add Custom Item Button */}
@@ -593,7 +639,10 @@ export default function PosPage() {
             <CategoryChips
               categories={categories}
               selectedCategoryId={selectedCategoryId}
-              onSelectCategory={setSelectedCategoryId}
+              onSelectCategory={(id) => {
+                setSelectedCategoryId(id);
+                setSearchQuery('');
+              }}
             />
 
             {/* Product Grid */}
