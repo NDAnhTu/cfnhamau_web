@@ -66,10 +66,9 @@ export default function PosConfirmationsPage() {
     setIsProcessing(true);
     try {
       await DataService.confirmOrderPayment(order.id, user?.id);
+      const label = order.order_type === 'takeaway' ? 'Mang đi' : order.table_name || 'Tại bàn';
       setBanner(
-        `Đã xác nhận nhận đủ tiền cho đơn ${order.order_number} (${
-          order.table_name || 'Tại bàn'
-        }) thành công! Đơn đã chuyển sang "Bàn đã thanh toán".`
+        `Đã xác nhận nhận đủ tiền cho đơn ${order.order_number} (${label}) thành công! Đơn đã chuyển sang "Bàn đã thanh toán".`
       );
       setSelectedOrder(null);
       await loadOrders();
@@ -82,11 +81,10 @@ export default function PosConfirmationsPage() {
   };
 
   const handleRevertToPending = async (order: Order) => {
+    const label = order.order_type === 'takeaway' ? 'đơn Mang đi' : `bàn ${order.table_name || 'Tại bàn'}`;
     if (
       !confirm(
-        `Bạn có chắc muốn chuyển đơn ${order.order_number} (${
-          order.table_name || 'Tại bàn'
-        }) về "Chưa thanh toán"? Bàn này sẽ xuất hiện lại trên màn hình Sơ Đồ Bàn.`
+        `Bạn có chắc muốn chuyển ${order.order_number} (${label}) về "Chưa thanh toán"?`
       )
     ) {
       return;
@@ -95,9 +93,7 @@ export default function PosConfirmationsPage() {
     try {
       await DataService.updateOrderStatus(order.id, 'pending');
       setBanner(
-        `Đã chuyển đơn ${order.order_number} (${
-          order.table_name || 'Tại bàn'
-        }) về trạng thái Chưa thanh toán thành công!`
+        `Đã chuyển đơn ${order.order_number} (${label}) về trạng thái Chưa thanh toán thành công!`
       );
       setSelectedOrder(null);
       await loadOrders();
@@ -367,7 +363,11 @@ export default function PosConfirmationsPage() {
                   className="w-full py-2.5 rounded-2xl border border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all"
                 >
                   <RotateCcw className="w-4 h-4 text-amber-600" />
-                  <span>Chưa Nhận Tiền (Chuyển Lại Bàn)</span>
+                  <span>
+                    {selectedOrder.order_type === 'takeaway'
+                      ? 'Chưa Nhận Tiền'
+                      : 'Chưa Nhận Tiền (Chuyển Lại Bàn)'}
+                  </span>
                 </button>
 
                 <button
@@ -476,15 +476,19 @@ export default function PosConfirmationsPage() {
                 <span>Đã Nhận Được Tiền ({formatCurrency(selectedOrder.final_amount)})</span>
               </button>
 
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={() => handleRevertToPending(selectedOrder)}
-                className="w-full py-2.5 rounded-2xl border border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all"
-              >
-                <RotateCcw className="w-4 h-4 text-amber-600" />
-                <span>Chưa Nhận Tiền (Chuyển Lại Bàn)</span>
-              </button>
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={() => handleRevertToPending(selectedOrder)}
+                  className="w-full py-2.5 rounded-2xl border border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all"
+                >
+                  <RotateCcw className="w-4 h-4 text-amber-600" />
+                  <span>
+                    {selectedOrder.order_type === 'takeaway'
+                      ? 'Chưa Nhận Tiền'
+                      : 'Chưa Nhận Tiền (Chuyển Lại Bàn)'}
+                  </span>
+                </button>
 
               <button
                 type="button"

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Category,
   Product,
@@ -44,6 +45,7 @@ import {
 } from 'lucide-react';
 
 export default function PosPage() {
+  const router = useRouter();
   const { user, isStaff } = useAuth();
   const { selectedDate, displayDate } = useDateFilter();
 
@@ -381,15 +383,20 @@ export default function PosPage() {
     if (cart.length === 0) return;
     setIsSavingPending(true);
     try {
-      const currentTableName = orderType === 'takeaway' ? 'Mang về' : (tableName.trim() || 'Bàn 01');
+      const isTakeaway = orderType === 'takeaway';
+      const currentTableName = isTakeaway ? 'Mang về' : (tableName.trim() || 'Bàn 01');
 
       if (existingOrderId) {
         // Appending drinks to an active order of this table with current user attribution
         await DataService.addItemsToExistingOrder(existingOrderId, cart, user?.id, user?.full_name);
-        const orderLabel = orderType === 'takeaway' ? 'đơn Mang về' : `bàn "${currentTableName}"`;
+        const orderLabel = isTakeaway ? 'đơn Mang về' : `bàn "${currentTableName}"`;
         setSuccessBanner(`Đã cập nhật thêm món thành công vào ${orderLabel}!`);
       } else {
-        // Creating a new active table order
+        // Creating a new active order
+        const orderNotes = isTakeaway
+          ? `${PENDING_PAYMENT_CONFIRMATION_TAG} Đơn mang về`
+          : `Đơn bàn ${currentTableName}`;
+
         const newOrder = await DataService.createOrder({
           tableName: currentTableName,
           orderType,
@@ -397,23 +404,32 @@ export default function PosPage() {
           discountAmount,
           paymentMethod: 'cash',
           status: 'pending',
-          notes: `Đơn ${orderType === 'takeaway' ? 'mang về' : 'bàn ' + currentTableName}`,
+          notes: orderNotes,
           staffId: user?.id || '',
         });
 
-        const orderLabel = orderType === 'takeaway' ? 'Mang về' : `bàn "${currentTableName}"`;
-        setSuccessBanner(`Đã lưu đơn ${newOrder.order_number} (${orderLabel}) và chuyển bếp thành công!`);
+        if (isTakeaway) {
+          setSuccessBanner(`Đơn mang về ${newOrder.order_number} đã được tạo và tự động chuyển sang tab "Xác nhận thanh toán"!`);
+        } else {
+          setSuccessBanner(`Đã lưu đơn ${newOrder.order_number} (bàn "${currentTableName}") và chuyển bếp thành công!`);
+        }
       }
 
       handleClearCart();
       setIsMobileCartOpen(false);
 
-      // KEY REQUIREMENT: Automatically switch to active tables screen!
-      setPosViewMode('tables');
+      if (isTakeaway) {
+        // Đơn mang đi sẽ tự chuyển qua tab "xác nhận thanh toán" ở trang quản trị
+        router.push('/pos/confirmations');
+      } else {
+        // Đơn tại bàn chuyển qua màn hình sơ đồ bàn
+        setPosViewMode('tables');
+      }
+
       await loadData();
       setTimeout(() => setSuccessBanner(null), 6000);
     } catch (e: any) {
-      alert('Lỗi lưu đơn bàn: ' + e.message);
+      alert('Lỗi lưu đơn: ' + e.message);
     } finally {
       setIsSavingPending(false);
     }

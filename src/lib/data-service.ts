@@ -39,8 +39,13 @@ const STORAGE_KEYS = {
 export const PENDING_PAYMENT_CONFIRMATION_TAG = '[CHỜ XÁC NHẬN TIỀN]';
 
 export function isAwaitingPaymentConfirmation(order?: Order | null): boolean {
-  if (!order || order.status !== 'completed') return false;
-  return Boolean(order.notes && order.notes.includes(PENDING_PAYMENT_CONFIRMATION_TAG));
+  if (!order) return false;
+  // 1. Đơn mang đi (takeaway): tự động chuyển qua tab "Xác nhận thanh toán" khi chưa hoàn tất thanh toán
+  if (order.order_type === 'takeaway') {
+    return order.status === 'pending' || Boolean(order.notes && order.notes.includes(PENDING_PAYMENT_CONFIRMATION_TAG));
+  }
+  // 2. Đơn tại bàn (dine_in): chỉ khi nhân viên đã bấm thanh toán và đang chờ admin xác nhận tiền
+  return Boolean(order.status === 'completed' && order.notes && order.notes.includes(PENDING_PAYMENT_CONFIRMATION_TAG));
 }
 
 function getLocal<T>(key: string, fallback: T): T {
@@ -536,11 +541,12 @@ export const DataService = {
   async getActiveTablesWithOrders(dateFilter?: string): Promise<import('@/types/database').ActiveTableInfo[]> {
     const orders = await this.getOrders();
 
-    // Lấy tất cả các đơn đang pending (cả dine_in và takeaway)
+    // CHỈ lấy các đơn dine_in (tại bàn) đang pending đại diện cho các bàn đang ngồi
+    // Đơn mang đi (takeaway) không nằm ở Sơ đồ bàn đang phục vụ mà chuyển qua tab "Xác nhận thanh toán"
     const pendingOrders = orders.filter((o) => {
-      const isPending = o.status === 'pending';
-      if (!dateFilter) return isPending;
-      return isPending && (getLocalDateString(o.created_at) === dateFilter || o.created_at.startsWith(dateFilter));
+      const isPendingDineIn = o.status === 'pending' && o.order_type === 'dine_in';
+      if (!dateFilter) return isPendingDineIn;
+      return isPendingDineIn && (getLocalDateString(o.created_at) === dateFilter || o.created_at.startsWith(dateFilter));
     });
 
     const result: import('@/types/database').ActiveTableInfo[] = pendingOrders.map((activeOrder) => {
@@ -1200,16 +1206,34 @@ export const DataService = {
       .replaceAll(PENDING_PAYMENT_CONFIRMATION_TAG, '')
       .trim() || null;
 
+    const currentTimestamp = getLocalTimestamp();
+    const updatePayload: any = {
+      status: 'completed',
+      completed_at: order.completed_at || currentTimestamp,
+      notes: cleanedNotes,
+    };
+    if (adminId) {
+      updatePayload.completed_by = toSafeUUID(adminId);
+    }
+
     if (this.isCloudConnected()) {
       const supabase = createClient();
-      await supabase
+      const { error: updateErr } = await supabase
         .from('orders')
-        .update({ notes: cleanedNotes })
+        .update(updatePayload)
         .eq('id', orderId);
+
+      if (updateErr && updateErr.message?.includes('completed_by')) {
+        delete updatePayload.completed_by;
+        await supabase.from('orders').update(updatePayload).eq('id', orderId);
+      }
     }
 
     const updatedOrder: Order = {
       ...order,
+      ...updatePayload,
+      status: 'completed',
+      completed_at: updatePayload.completed_at,
       notes: cleanedNotes,
     };
 
