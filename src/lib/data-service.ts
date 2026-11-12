@@ -22,7 +22,12 @@ import {
   initialOrders,
   initialCashTransactions,
 } from './mock-data';
-import { createClient, isSupabaseConfigured } from './supabase/client';
+import {
+  createClient,
+  isSupabaseConfigured,
+  refreshSupabaseSession,
+  reconnectRealtimeIfDisconnected,
+} from './supabase/client';
 import { getLocalTimestamp, getLocalDateString, parseOrderDate } from './utils';
 
 const STORAGE_KEYS = {
@@ -633,19 +638,78 @@ export const DataService = {
   },
 
   subscribeToTablesAndOrders(callback: () => void): () => void {
+    let lastTriggerTime = 0;
+    const throttledCallback = (immediate = false) => {
+      const now = Date.now();
+      if (immediate || now - lastTriggerTime > 1200) {
+        lastTriggerTime = now;
+        callback();
+      }
+    };
+
+    // Khi người dùng mở lại app từ chế độ ngủ / khóa màn hình
+    const handleVisibilityChange = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        try {
+          await refreshSupabaseSession();
+          reconnectRealtimeIfDisconnected();
+        } catch {}
+        throttledCallback();
+      }
+    };
+
+    // Khi cửa sổ/tab nhận lại tiêu điểm
+    const handleFocus = () => {
+      throttledCallback();
+    };
+
+    // Khi thiết bị có mạng trở lại sau khi mất kết nối
+    const handleOnline = () => {
+      reconnectRealtimeIfDisconnected();
+      throttledCallback();
+    };
+
+    // Khi người dùng thực hiện thao tác vuốt làm mới (Pull-to-refresh)
+    const handlePullToRefresh = (e: Event) => {
+      e.preventDefault();
+      throttledCallback(true);
+    };
+
+    if (typeof window !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('focus', handleFocus);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('app:pull-to-refresh', handlePullToRefresh);
+    }
+
     if (this.isCloudConnected()) {
       const supabase = createClient();
+      const channelId = `realtime_orders_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const channel = supabase
-        .channel('realtime_tables_orders')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => callback())
-        .subscribe();
+        .channel(channelId)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+          // Sự kiện realtime trực tiếp thì gọi callback ngay lập tức
+          callback();
+        })
+        .subscribe((status) => {
+          if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+            console.warn('[Realtime] Subscription interrupted:', status);
+            throttledCallback();
+          }
+        });
 
       return () => {
+        if (typeof window !== 'undefined') {
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+          window.removeEventListener('focus', handleFocus);
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('app:pull-to-refresh', handlePullToRefresh);
+        }
         supabase.removeChannel(channel);
       };
     }
 
-    // Polling fallback
+    // Polling fallback cho chế độ offline/local storage
     const interval = setInterval(callback, 3000);
     const handleStorage = () => callback();
     if (typeof window !== 'undefined') {
@@ -655,6 +719,10 @@ export const DataService = {
       clearInterval(interval);
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage', handleStorage);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', handleFocus);
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('app:pull-to-refresh', handlePullToRefresh);
       }
     };
   },

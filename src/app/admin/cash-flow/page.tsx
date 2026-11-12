@@ -31,6 +31,18 @@ export default function AdminCashFlowPage() {
 
   useEffect(() => {
     loadData();
+
+    const handleSync = () => loadData();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadData();
+    };
+
+    window.addEventListener('app:pull-to-refresh', handleSync);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('app:pull-to-refresh', handleSync);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const loadData = async () => {

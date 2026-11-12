@@ -45,6 +45,18 @@ export default function DailyExpensesPage() {
 
   useEffect(() => {
     loadExpenses();
+
+    const handleSync = () => loadExpenses();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadExpenses();
+    };
+
+    window.addEventListener('app:pull-to-refresh', handleSync);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('app:pull-to-refresh', handleSync);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [selectedDate]);
 
   const loadExpenses = async () => {

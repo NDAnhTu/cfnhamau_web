@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { DateFilterProvider } from '@/context/DateFilterContext';
 import { Navbar } from '@/components/Navbar';
+import { PullToRefresh } from '@/components/common/PullToRefresh';
 
 export const metadata: Metadata = {
   title: 'Hệ Thống Quản Lý Quán Cà Phê | POS & Dashboard',
@@ -30,6 +31,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <DateFilterProvider>
+              <PullToRefresh />
               <div className="min-h-screen flex flex-col">
                 <Navbar />
                 <main className="flex-1 flex flex-col">{children}</main>

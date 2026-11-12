@@ -52,6 +52,18 @@ export default function AdminMenuPage() {
 
   useEffect(() => {
     loadMenuData();
+
+    const handleSync = () => loadMenuData();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadMenuData();
+    };
+
+    window.addEventListener('app:pull-to-refresh', handleSync);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('app:pull-to-refresh', handleSync);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const loadMenuData = async () => {

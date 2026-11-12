@@ -26,6 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isCloud, setIsCloud] = useState(false);
 
   useEffect(() => {
+    let authSubscription: { unsubscribe: () => void } | null = null;
+
     async function initAuth() {
       const cloud = isSupabaseConfigured();
       setIsCloud(cloud);
@@ -33,6 +35,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cloud) {
         try {
           const supabase = createClient();
+
+          // Lắng nghe thay đổi trạng thái token / session của Supabase
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+            if (event === 'SIGNED_OUT') {
+              const saved = typeof window !== 'undefined' ? localStorage.getItem('cf_current_user') : null;
+              if (!saved) {
+                setUser(null);
+              }
+            }
+          });
+          authSubscription = subscription;
+
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             const { data: profile } = await supabase
@@ -92,6 +106,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initAuth();
+
+    // Tự động kiểm tra và làm mới session khi người dùng mở lại tab/màn hình
+    const handleVisibilityChange = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && isSupabaseConfigured()) {
+        try {
+          const supabase = createClient();
+          await supabase.auth.getSession();
+        } catch (err) {
+          console.warn('Failed to refresh session on visibility change:', err);
+        }
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      authSubscription?.unsubscribe();
+      if (typeof window !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
   }, []);
 
   const login = async (
