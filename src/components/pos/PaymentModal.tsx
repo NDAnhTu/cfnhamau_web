@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PaymentMethod, DiningTable, Order, OrderItem } from '@/types/database';
-import { formatCurrency, getVietQRUrl } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import {
   X,
   Banknote,
@@ -194,10 +194,7 @@ export function PaymentModal({
     }
   };
 
-  const qrUrl = getVietQRUrl({
-    amount: effectiveFinalAmount,
-    orderNumber,
-  });
+  const qrUrl = '/qr-code.jpg';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -239,7 +236,7 @@ export function PaymentModal({
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Thanh toán tất cả ({totalItemCount} món)
+                Thanh toán tất cả
               </button>
               <button
                 type="button"
@@ -394,7 +391,7 @@ export function PaymentModal({
             }`}
           >
             <Banknote className="w-4 h-4" />
-            <span>Tiền Mặt (Cash)</span>
+            <span>Tiền Mặt</span>
           </button>
 
           <button
@@ -407,46 +404,29 @@ export function PaymentModal({
             }`}
           >
             <QrCode className="w-4 h-4" />
-            <span>Chuyển Khoản (VietQR)</span>
+            <span>Chuyển Khoản</span>
           </button>
         </div>
 
         {/* Tab Content */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
           {method === 'cash' ? (
-            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                <Banknote className="w-6 h-6" />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  Thu Tiền Mặt
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Số tiền thực thu: <span className="font-black text-amber-600 dark:text-amber-400 text-sm">{formatCurrency(effectiveFinalAmount)}</span>
-                </p>
-              </div>
+            <div>
             </div>
           ) : (
-            /* VietQR Mode */
-            <div className="flex flex-col items-center justify-center p-2 text-center space-y-3">
-              <div className="p-3 bg-white rounded-2xl border-2 border-amber-500/30 shadow-md">
+            /* QR Transfer Mode */
+            <div className="flex flex-col items-center justify-center p-2 text-center space-y-2.5">
+              <div className="p-3 bg-white rounded-2xl border-2 border-amber-500/40 shadow-md">
                 <img
                   src={qrUrl}
-                  alt={`VietQR ${orderNumber}`}
-                  className="w-56 h-56 object-contain rounded-lg"
+                  alt="Mã QR Chuyển Khoản Quán"
+                  className="w-64 max-h-80 object-contain rounded-xl mx-auto"
                   onLoad={() => setQrLoaded(true)}
                 />
               </div>
-
-              <div>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                  Quét mã bằng App Ngân Hàng hoặc Ví Điện Tử
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Số tiền {formatCurrency(effectiveFinalAmount)} & nội dung {orderNumber} đã tự động điền sẵn
-                </p>
-              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Quét mã QR để chuyển khoản thanh toán
+              </p>
             </div>
           )}
 
@@ -480,8 +460,8 @@ export function PaymentModal({
                   ? 'Vui lòng tick chọn món cần thanh toán lẻ'
                   : `Xác nhận thu tiền lẻ: ${formatCurrency(splitTotalAmount)} (Giữ lại ${formatCurrency(remainingTotalAmount)} ở bàn)`
                 : method === 'cash'
-                ? 'Hoàn tất Đơn & Thu tiền mặt'
-                : 'Xác nhận Đã Nhận Tiền VietQR'}
+                ? 'Thu tiền mặt'
+                : 'Chuyển khoản'}
             </span>
           </button>
 

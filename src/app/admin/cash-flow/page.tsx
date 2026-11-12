@@ -102,7 +102,7 @@ export default function AdminCashFlowPage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider block">
             Tổng Thu Ngoài (Quỹ)
           </span>
           <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
@@ -111,7 +111,7 @@ export default function AdminCashFlowPage() {
         </div>
 
         <div className="p-5 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider block">
             Tổng Chi Ngoài (Chi phí)
           </span>
           <span className="text-2xl font-black text-rose-500 mt-1 block">
@@ -120,7 +120,7 @@ export default function AdminCashFlowPage() {
         </div>
 
         <div className="p-5 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider block">
             Dòng Tiền Thu Chi Ròng
           </span>
           <span
@@ -188,7 +188,7 @@ export default function AdminCashFlowPage() {
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-400 bg-slate-50/50 dark:bg-slate-850">
+              <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-850 font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-3">Thời gian</th>
                 <th className="py-3 px-3">Loại phiếu</th>
                 <th className="py-3 px-3">Danh mục</th>

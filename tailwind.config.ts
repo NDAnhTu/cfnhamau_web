@@ -10,6 +10,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        slate: {
+          750: '#243042',
+          850: '#141e2e',
+        },
         coffee: {
           50: '#fffbeb',
           100: '#fef3c7',

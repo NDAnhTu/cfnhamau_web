@@ -342,7 +342,7 @@ export default function DailyExpensesPage() {
                 />
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-750 text-[11px] text-slate-500 space-y-1">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400 space-y-1">
                 <div>Người lập phiếu: <strong className="text-slate-800 dark:text-white">{user?.full_name || 'Chưa đăng nhập'}</strong></div>
                 <div>Ngày ghi nhận: <strong className="text-slate-800 dark:text-white">{displayDate}</strong></div>
               </div>

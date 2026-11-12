@@ -27,7 +27,7 @@ interface CartViewProps {
   onClearCart: () => void;
   onSelectOrderType: (type: OrderType) => void;
   onSetDiscount: (amount: number) => void;
-  onOpenPayment: () => void;
+  onOpenPayment?: () => void;
   onSavePending: () => void;
   isSavingPending?: boolean;
   existingOrderId?: number | null;
@@ -282,26 +282,22 @@ export function CartView({
           </div>
         </div>
 
-        {/* Buttons */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Button */}
+        <div>
           <button
             type="button"
             disabled={cart.length === 0 || isSavingPending}
             onClick={onSavePending}
-            className="py-3 px-2 rounded-2xl border border-amber-500/80 text-amber-700 dark:text-amber-400 font-bold text-xs hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5"
+            className="w-full py-3.5 px-4 rounded-2xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-40 text-white font-extrabold text-sm shadow-md shadow-amber-600/30 transition-all flex items-center justify-center gap-2"
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>{existingOrderId ? 'Cập Nhật Vào Bàn' : 'Lưu Bàn & Báo Bếp'}</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={cart.length === 0}
-            onClick={onOpenPayment}
-            className="py-3 px-3 rounded-2xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-40 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-amber-600/30 transition-all flex items-center justify-center gap-1.5"
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Thanh Toán</span>
+            <Clock className="w-4 h-4" />
+            <span>
+              {isSavingPending
+                ? 'Đang lưu...'
+                : existingOrderId
+                ? 'Cập Nhật Vào Bàn'
+                : 'Lưu Bàn'}
+            </span>
           </button>
         </div>
       </div>

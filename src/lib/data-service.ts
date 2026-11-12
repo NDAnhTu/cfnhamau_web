@@ -141,6 +141,94 @@ export const DataService = {
     return newProfile;
   },
 
+  async updateProfile(id: string, updates: Partial<Omit<Profile, 'id' | 'created_at'>>): Promise<Profile> {
+    try {
+      await fetch('/api/admin/manage-user', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          fullName: updates.full_name,
+          email: updates.email,
+          phone: updates.phone,
+          role: updates.role,
+          password: updates.password,
+          isActive: updates.is_active,
+        }),
+      });
+    } catch (e) {
+      console.warn('Gọi /api/admin/manage-user PUT warning:', e);
+    }
+
+    if (this.isCloudConnected()) {
+      try {
+        const supabase = createClient();
+        const payload: any = {};
+        if (updates.full_name !== undefined) payload.full_name = updates.full_name.trim();
+        if (updates.role !== undefined) payload.role = updates.role;
+        if (updates.phone !== undefined) payload.phone = updates.phone ? updates.phone.trim() : null;
+        if (updates.is_active !== undefined) payload.is_active = updates.is_active;
+
+        await supabase.from('profiles').update(payload).eq('id', id);
+      } catch (err) {
+        console.warn('Direct supabase profile update error:', err);
+      }
+    }
+
+    const profiles = await this.getProfiles();
+    let updatedProfile: Profile | null = null;
+    const updated = profiles.map((p) => {
+      if (p.id === id) {
+        updatedProfile = {
+          ...p,
+          ...updates,
+          full_name: updates.full_name !== undefined ? updates.full_name.trim() : p.full_name,
+          phone: updates.phone !== undefined ? (updates.phone ? updates.phone.trim() : null) : p.phone,
+          email: updates.email !== undefined ? (updates.email ? updates.email.trim().toLowerCase() : null) : p.email,
+        };
+        return updatedProfile;
+      }
+      return p;
+    });
+
+    setLocal(STORAGE_KEYS.PROFILES, updated);
+
+    const currentUser = getLocal<Profile | null>(STORAGE_KEYS.CURRENT_USER, null);
+    if (currentUser && currentUser.id === id && updatedProfile) {
+      setLocal(STORAGE_KEYS.CURRENT_USER, updatedProfile);
+    }
+
+    if (!updatedProfile) throw new Error('Không tìm thấy tài khoản nhân sự để cập nhật');
+    return updatedProfile;
+  },
+
+  async deleteProfile(id: string): Promise<void> {
+    try {
+      await fetch(`/api/admin/manage-user?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+    } catch (e) {
+      console.warn('Gọi /api/admin/manage-user DELETE warning:', e);
+    }
+
+    if (this.isCloudConnected()) {
+      try {
+        const supabase = createClient();
+        await supabase.from('orders').update({ created_by: null }).eq('created_by', id);
+        await supabase.from('orders').update({ cancelled_by: null }).eq('cancelled_by', id);
+        await supabase.from('cash_transactions').update({ created_by: null }).eq('created_by', id);
+        await supabase.from('shifts').delete().eq('staff_id', id);
+        await supabase.from('profiles').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Direct supabase profile delete error:', err);
+      }
+    }
+
+    const profiles = await this.getProfiles();
+    const filtered = profiles.filter((p) => p.id !== id);
+    setLocal(STORAGE_KEYS.PROFILES, filtered);
+  },
+
   // -------------------------------------------------------------
   // CATEGORIES
   // -------------------------------------------------------------
@@ -448,15 +536,18 @@ export const DataService = {
   async getActiveTablesWithOrders(dateFilter?: string): Promise<import('@/types/database').ActiveTableInfo[]> {
     const orders = await this.getOrders();
 
-    // Chỉ lấy các đơn dine_in đang pending (đại diện cho các bàn đang ngồi)
+    // Lấy tất cả các đơn đang pending (cả dine_in và takeaway)
     const pendingOrders = orders.filter((o) => {
-      const isPendingDineIn = o.status === 'pending' && o.order_type === 'dine_in';
-      if (!dateFilter) return isPendingDineIn;
-      return isPendingDineIn && (getLocalDateString(o.created_at) === dateFilter || o.created_at.startsWith(dateFilter));
+      const isPending = o.status === 'pending';
+      if (!dateFilter) return isPending;
+      return isPending && (getLocalDateString(o.created_at) === dateFilter || o.created_at.startsWith(dateFilter));
     });
 
     const result: import('@/types/database').ActiveTableInfo[] = pendingOrders.map((activeOrder) => {
-      const resolvedName = activeOrder.table_name || activeOrder.table?.name || 'Bàn chưa đặt tên';
+      const resolvedName =
+        activeOrder.table_name ||
+        activeOrder.table?.name ||
+        (activeOrder.order_type === 'takeaway' ? 'Mang về' : 'Bàn chưa đặt tên');
       const table: DiningTable = {
         id: activeOrder.id,
         name: resolvedName,

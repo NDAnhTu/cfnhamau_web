@@ -293,7 +293,7 @@ export default function PosConfirmationsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 dark:text-slate-400">Hình thức thanh toán:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {selectedOrder.payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản (VietQR)'}
+                    {selectedOrder.payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản'}
                   </span>
                 </div>
                 {selectedOrder.notes && (
@@ -311,7 +311,7 @@ export default function PosConfirmationsPage() {
                 {selectedOrder.items?.map((item) => (
                   <div
                     key={item.id}
-                    className="flex justify-between items-center text-xs p-2 rounded-xl bg-slate-50 dark:bg-slate-750"
+                    className="flex justify-between items-center text-xs p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/60"
                   >
                     <div>
                       <div className="font-bold text-slate-800 dark:text-slate-100">
@@ -423,7 +423,7 @@ export default function PosConfirmationsPage() {
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 dark:text-slate-400">Hình thức thanh toán:</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {selectedOrder.payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản (VietQR)'}
+                  {selectedOrder.payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản'}
                 </span>
               </div>
             </div>
@@ -433,7 +433,7 @@ export default function PosConfirmationsPage() {
               {selectedOrder.items?.map((item) => (
                 <div
                   key={item.id}
-                  className="flex justify-between items-center text-xs p-2 rounded-xl bg-slate-50 dark:bg-slate-750"
+                  className="flex justify-between items-center text-xs p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/60"
                 >
                   <div>
                     <div className="font-bold text-slate-800 dark:text-slate-100">

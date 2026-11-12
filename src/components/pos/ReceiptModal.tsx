@@ -125,7 +125,7 @@ export function ReceiptModal({ order, isOpen, onClose }: ReceiptModalProps) {
 
             <div className="flex justify-between text-[10px] text-gray-600 pt-0.5">
               <span>Phương thức:</span>
-              <span>{order.payment_method === 'cash' ? 'Tiền mặt (Cash)' : 'Chuyển khoản (VietQR)'}</span>
+              <span>{order.payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản'}</span>
             </div>
           </div>
 

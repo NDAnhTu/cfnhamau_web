@@ -34,7 +34,7 @@ export function CustomItemModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert('Vui lòng nhập tên món custom');
+      alert('Vui lòng nhập tên món');
       return;
     }
     if (price <= 0) {
@@ -97,7 +97,7 @@ export function CustomItemModal({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                Thêm Món Custom / Đặt Riêng
+                Thêm Món Khác
               </h2>
               <p className="text-xs text-slate-400">
                 Tự set tên & giá bán trực tiếp tại quầy

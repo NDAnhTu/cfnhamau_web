@@ -409,7 +409,7 @@ export default function AdminDashboardPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-400">
+              <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-850 font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-2.5 px-3">Xếp hạng</th>
                 <th className="py-2.5 px-3">Tên món</th>
                 <th className="py-2.5 px-3 text-right">Số lượng ly bán</th>

@@ -263,16 +263,16 @@ export default function StaffOrdersPage() {
               </div>
 
               {/* Creator & Cashier info */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-750/70 border border-slate-100 dark:border-slate-700/60 text-xs space-y-1.5">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/80 text-xs space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Người tạo đơn:</span>
+                  <span className="text-slate-500 dark:text-slate-400">Người tạo đơn:</span>
                   <span className="font-bold text-slate-800 dark:text-white">
                     {selectedOrder.creator?.full_name || 'Nhân viên'}
                   </span>
                 </div>
                 {selectedOrder.completer && (
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Người thanh toán:</span>
+                    <span className="text-slate-500 dark:text-slate-400">Người thanh toán:</span>
                     <span className="font-bold text-emerald-600 dark:text-emerald-400">
                       {selectedOrder.completer.full_name}
                     </span>
@@ -301,7 +301,7 @@ export default function StaffOrdersPage() {
                 {selectedOrder.items?.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-750 text-xs flex justify-between items-center"
+                    className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/60 text-xs flex justify-between items-center"
                   >
                     <div>
                       <p className="font-bold text-slate-800 dark:text-white">
@@ -398,16 +398,16 @@ export default function StaffOrdersPage() {
             </div>
 
             {/* Creator & Cashier info */}
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-750/70 border border-slate-100 dark:border-slate-700/60 text-xs space-y-1.5">
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/80 text-xs space-y-1.5">
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">Người tạo đơn:</span>
+                <span className="text-slate-500 dark:text-slate-400">Người tạo đơn:</span>
                 <span className="font-bold text-slate-800 dark:text-white">
                   {selectedOrder.creator?.full_name || 'Nhân viên'}
                 </span>
               </div>
               {selectedOrder.completer && (
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Người thanh toán:</span>
+                  <span className="text-slate-500 dark:text-slate-400">Người thanh toán:</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {selectedOrder.completer.full_name}
                   </span>
@@ -415,7 +415,7 @@ export default function StaffOrdersPage() {
               )}
               {selectedOrder.completed_at && (
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Thời gian xong:</span>
+                  <span className="text-slate-500 dark:text-slate-400">Thời gian xong:</span>
                   <span className="font-medium text-slate-600 dark:text-slate-300">
                     {formatTime(selectedOrder.completed_at)}
                   </span>
@@ -423,7 +423,7 @@ export default function StaffOrdersPage() {
               )}
               {selectedOrder.notes && (
                 <div className="flex justify-between items-center pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-                  <span className="text-slate-400">Ghi chú:</span>
+                  <span className="text-slate-500 dark:text-slate-400">Ghi chú:</span>
                   <span className="font-medium text-slate-700 dark:text-slate-200">
                     {selectedOrder.notes}
                   </span>
@@ -436,7 +436,7 @@ export default function StaffOrdersPage() {
               {selectedOrder.items?.map((item) => (
                 <div
                   key={item.id}
-                  className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-750 text-xs flex justify-between items-center"
+                  className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/60 text-xs flex justify-between items-center"
                 >
                   <div>
                     <p className="font-bold text-slate-800 dark:text-white">

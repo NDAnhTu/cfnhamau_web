@@ -293,7 +293,7 @@ export default function AdminMenuPage() {
             placeholder="Tìm theo tên món..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-amber-500"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs focus:ring-2 focus:ring-amber-500"
           />
         </div>
       </div>
@@ -390,7 +390,7 @@ export default function AdminMenuPage() {
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-400 bg-slate-50/50 dark:bg-slate-850">
+              <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-850 font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-4">Món & Hình ảnh</th>
                 <th className="py-3 px-3">Danh mục</th>
                 <th className="py-3 px-3">Giá bán / Kích thước (Sizes)</th>

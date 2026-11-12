@@ -324,18 +324,18 @@ export default function AdminTablesPage() {
                   </div>
 
                   {/* Drink items summary */}
-                  <div className="my-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-750 border border-slate-100 dark:border-slate-700 text-xs space-y-1">
-                    <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                  <div className="my-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/80 text-xs space-y-1">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 dark:text-slate-300">
                       <span>Món đang dùng:</span>
                       <span>NV tạo: {item.activeOrder?.creator?.full_name?.split(' ').pop() || 'Nhân viên'}</span>
                     </div>
                     <div className="max-h-24 overflow-y-auto space-y-0.5 pr-1">
                       {item.activeOrder?.items?.map((drink) => (
-                        <div key={drink.id} className="flex justify-between items-center text-slate-800 dark:text-slate-200">
+                        <div key={drink.id} className="flex justify-between items-center text-slate-800 dark:text-slate-100">
                           <span className="truncate pr-1">
-                            <strong className="text-amber-600">{drink.quantity}x</strong> {drink.item_name} {drink.size_name && `(${drink.size_name})`}
+                            <strong className="text-amber-600 dark:text-amber-400">{drink.quantity}x</strong> {drink.item_name} {drink.size_name && `(${drink.size_name})`}
                           </span>
-                          <span className="font-semibold text-slate-500 text-[11px]">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400 text-[11px]">
                             {formatCurrency(drink.subtotal)}
                           </span>
                         </div>

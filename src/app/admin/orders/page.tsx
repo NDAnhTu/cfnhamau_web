@@ -30,7 +30,8 @@ export default function AdminOrdersPage() {
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days'>('all');
   const [staffFilter, setStaffFilter] = useState<string>('all');
   const [methodFilter, setMethodFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<'completed' | 'pending'>('completed');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending'>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'dine_in' | 'takeaway'>('all');
   const [searchCode, setSearchCode] = useState('');
 
   // Selected order details modal
@@ -40,6 +41,15 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     loadData();
+
+    // Tự động lắng nghe thay đổi đơn hàng realtime
+    const unsubscribe = DataService.subscribeToTablesAndOrders(() => {
+      loadData();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const loadData = async () => {
@@ -64,8 +74,12 @@ export default function AdminOrdersPage() {
     if (methodFilter !== 'all' && o.payment_method !== methodFilter) {
       return false;
     }
-    // Status filter ('completed' = Thanh toán, 'pending' = Chưa thanh toán)
-    if (o.status !== statusFilter) {
+    // Status filter
+    if (statusFilter !== 'all' && o.status !== statusFilter) {
+      return false;
+    }
+    // Order type filter
+    if (orderTypeFilter !== 'all' && o.order_type !== orderTypeFilter) {
       return false;
     }
     // Date filter
@@ -211,26 +225,26 @@ export default function AdminOrdersPage() {
 
       {/* Multipurpose Filter Bar */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
           {/* Search code */}
           <div className="col-span-2 sm:col-span-1">
-            <label className="block text-[11px] font-bold text-slate-400 mb-1">Mã đơn</label>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Mã đơn</label>
             <input
               type="text"
               placeholder="#1001..."
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
-              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium"
+              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 font-medium"
             />
           </div>
 
           {/* Date range */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 mb-1">Thời gian</label>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Thời gian</label>
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value as any)}
-              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold"
+              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold"
             >
               <option value="all">Tất cả thời gian</option>
               <option value="today">Hôm nay</option>
@@ -241,11 +255,11 @@ export default function AdminOrdersPage() {
 
           {/* Staff */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 mb-1">Nhân viên đứng ca</label>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Nhân viên đứng ca</label>
             <select
               value={staffFilter}
               onChange={(e) => setStaffFilter(e.target.value)}
-              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold"
+              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold"
             >
               <option value="all">Tất cả nhân viên</option>
               {profiles.map((p) => (
@@ -256,13 +270,27 @@ export default function AdminOrdersPage() {
             </select>
           </div>
 
+          {/* Order Type */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Loại đơn</label>
+            <select
+              value={orderTypeFilter}
+              onChange={(e) => setOrderTypeFilter(e.target.value as any)}
+              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold"
+            >
+              <option value="all">Tất cả loại đơn</option>
+              <option value="dine_in">Tại bàn</option>
+              <option value="takeaway">Mang về</option>
+            </select>
+          </div>
+
           {/* Payment */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 mb-1">Thanh toán</label>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Thanh toán</label>
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value)}
-              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold"
+              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold"
             >
               <option value="all">Tất cả hình thức</option>
               <option value="cash">Tiền mặt</option>
@@ -272,12 +300,13 @@ export default function AdminOrdersPage() {
 
           {/* Status */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-400 mb-1">Trạng thái</label>
+            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Trạng thái</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-semibold"
+              className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold"
             >
+              <option value="all">Tất cả trạng thái</option>
               <option value="completed">Thanh toán</option>
               <option value="pending">Chưa thanh toán</option>
             </select>
@@ -370,7 +399,7 @@ export default function AdminOrdersPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-700 text-slate-400 bg-slate-50/50 dark:bg-slate-850">
+              <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-850 font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-4">Mã đơn & Bàn</th>
                 <th className="py-3 px-3">Thời gian tạo</th>
                 <th className="py-3 px-3">Người tạo & Thu ngân</th>
@@ -591,6 +620,21 @@ export default function AdminOrdersPage() {
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Đã nhận được tiền</span>
+                  </button>
+                )}
+
+                {viewingOrder.status === 'pending' && !isAwaitingPaymentConfirmation(viewingOrder) && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await DataService.updateOrderStatus(viewingOrder.id, 'completed', undefined, undefined, user?.id);
+                      setViewingOrder(null);
+                      await loadData();
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Hoàn tất thanh toán</span>
                   </button>
                 )}
 

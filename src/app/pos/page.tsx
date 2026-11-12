@@ -262,9 +262,9 @@ export default function PosPage() {
     setPosViewMode('menu');
   };
 
-  const handleQuickNewTable = (tblName: string) => {
-    setTableName(tblName);
-    setOrderType('dine_in');
+  const handleQuickNewTable = (tblName: string, isTakeaway = false) => {
+    setTableName(isTakeaway ? 'Mang về' : tblName);
+    setOrderType(isTakeaway ? 'takeaway' : 'dine_in');
     setExistingOrderId(null);
     setCart([]);
     setPosViewMode('menu');
@@ -272,7 +272,7 @@ export default function PosPage() {
 
   const handleAddMoreItems = (tableInfo: ActiveTableInfo) => {
     setTableName(tableInfo.table.name);
-    setOrderType('dine_in');
+    setOrderType(tableInfo.activeOrder?.order_type || 'dine_in');
     setExistingOrderId(tableInfo.activeOrder?.id || null);
     setCart([]);
     setPosViewMode('menu');
@@ -315,7 +315,7 @@ export default function PosPage() {
     });
 
     setSuccessBanner(
-      `Đã thanh toán lẻ thành công đơn ${result.paidOrder.order_number} (${formatCurrency(result.paidOrder.final_amount)}) cho bàn "${checkoutTarget.tableName}"! Bàn còn lại ${formatCurrency(result.remainingOrder?.final_amount || 0)}.`
+      `Đã thanh toán lẻ thành công.`
     );
     handleClearCart();
     setIsMobileCartOpen(false);
@@ -386,7 +386,8 @@ export default function PosPage() {
       if (existingOrderId) {
         // Appending drinks to an active order of this table with current user attribution
         await DataService.addItemsToExistingOrder(existingOrderId, cart, user?.id, user?.full_name);
-        setSuccessBanner(`Đã cập nhật thêm món thành công vào bàn ${currentTableName}!`);
+        const orderLabel = orderType === 'takeaway' ? 'đơn Mang về' : `bàn "${currentTableName}"`;
+        setSuccessBanner(`Đã cập nhật thêm món thành công vào ${orderLabel}!`);
       } else {
         // Creating a new active table order
         const newOrder = await DataService.createOrder({
@@ -396,11 +397,12 @@ export default function PosPage() {
           discountAmount,
           paymentMethod: 'cash',
           status: 'pending',
-          notes: `Đơn bàn ${currentTableName}`,
+          notes: `Đơn ${orderType === 'takeaway' ? 'mang về' : 'bàn ' + currentTableName}`,
           staffId: user?.id || '',
         });
 
-        setSuccessBanner(`Đã lưu đơn ${newOrder.order_number} cho bàn "${currentTableName}" và chuyển bếp thành công!`);
+        const orderLabel = orderType === 'takeaway' ? 'Mang về' : `bàn "${currentTableName}"`;
+        setSuccessBanner(`Đã lưu đơn ${newOrder.order_number} (${orderLabel}) và chuyển bếp thành công!`);
       }
 
       handleClearCart();
@@ -435,8 +437,8 @@ export default function PosPage() {
       );
       setSuccessBanner(
         isStaff
-          ? `Bàn "${checkoutTarget.tableName}" đã thanh toán! Đang chờ Admin xác nhận nhận tiền.`
-          : `Bàn ${checkoutTarget.tableName} đã thanh toán hoàn tất và giải phóng bàn!`
+          ? `Bàn "${checkoutTarget.tableName}" đã thanh toán!`
+          : `Bàn ${checkoutTarget.tableName} đã thanh toán hoàn tất!`
       );
     } else {
       // Completed directly from cart
@@ -452,7 +454,7 @@ export default function PosPage() {
       });
       setSuccessBanner(
         isStaff
-          ? `Đơn ${newOrder.order_number} của "${checkoutTarget.tableName}" đã thanh toán! Đang chờ Admin xác nhận nhận tiền.`
+          ? `Đơn ${newOrder.order_number} của "${checkoutTarget.tableName}" đã thanh toán!`
           : `Đơn hàng ${newOrder.order_number} của ${checkoutTarget.tableName} đã thanh toán thành công!`
       );
     }
@@ -480,12 +482,6 @@ export default function PosPage() {
             <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>{successBanner}</span>
           </div>
-          <button
-            onClick={() => setPosViewMode('tables')}
-            className="underline text-xs hover:text-emerald-600 shrink-0 ml-2"
-          >
-            Xem danh sách bàn
-          </button>
         </div>
       )}
 
@@ -571,7 +567,7 @@ export default function PosPage() {
                 className="px-3 sm:px-4 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-amber-600/20 flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>+ Món Custom</span>
+                <span>Món Khác</span>
               </button>
             </div>
 
