@@ -617,19 +617,34 @@ export const DataService = {
     const cleanName = targetTableName.trim();
     const orders = await this.getOrders();
     const pendingOrder = orders.find(
-      (o) => (o.id === orderIdOrTableId || o.table_id === orderIdOrTableId) && o.status === 'pending'
+      (o) =>
+        (Number(o.id) === Number(orderIdOrTableId) || Number(o.table_id) === Number(orderIdOrTableId)) &&
+        o.status === 'pending'
     );
 
     if (pendingOrder) {
       pendingOrder.table_name = cleanName;
       pendingOrder.table = { id: pendingOrder.id, name: cleanName, is_occupied: true };
 
+      if (pendingOrder.notes && pendingOrder.notes.includes('Đơn bàn ')) {
+        pendingOrder.notes = pendingOrder.notes.replace(/Đơn bàn [^|]+/, `Đơn bàn ${cleanName}`);
+      }
+
       if (this.isCloudConnected()) {
         const supabase = createClient();
-        await supabase
+        const updatePayload: any = { table_name: cleanName };
+        if (pendingOrder.notes) updatePayload.notes = pendingOrder.notes;
+
+        const { error: upErr } = await supabase
           .from('orders')
-          .update({ table_name: cleanName })
+          .update(updatePayload)
           .eq('id', pendingOrder.id);
+
+        if (upErr && upErr.message?.includes('table_name')) {
+          delete updatePayload.table_name;
+          updatePayload.table = cleanName;
+          await supabase.from('orders').update(updatePayload).eq('id', pendingOrder.id);
+        }
       }
       setLocal(STORAGE_KEYS.ORDERS, orders);
     }
@@ -915,7 +930,7 @@ export const DataService = {
 
       if (!error && data) {
         return data.map((o: any) => {
-          const creator =
+          let creator =
             profiles.find((p) => p.id === o.created_by) ||
             (o.created_by
               ? {
@@ -926,6 +941,29 @@ export const DataService = {
                   created_at: '',
                 }
               : undefined);
+
+          // Khôi phục tên người tạo nếu created_by bị null nhưng trong các món có ghi chú "Thêm bởi: <tên>"
+          if ((!creator || creator.full_name === 'Nhân viên') && Array.isArray(o.order_items)) {
+            for (const it of o.order_items) {
+              if (it.notes && it.notes.includes('Thêm bởi:')) {
+                const m = it.notes.match(/Thêm bởi:\s*([^|]+)/);
+                if (m && m[1]?.trim()) {
+                  const extractedName = m[1].trim();
+                  const matched = profiles.find(
+                    (p) => p.full_name.trim().toLowerCase() === extractedName.toLowerCase()
+                  );
+                  creator = matched || {
+                    id: o.created_by || 'creator-id',
+                    full_name: extractedName,
+                    role: 'staff',
+                    is_active: true,
+                    created_at: '',
+                  };
+                  break;
+                }
+              }
+            }
+          }
 
           let completer = profiles.find((p) => p.id === o.completed_by);
           if (!completer && o.notes && o.notes.includes('Thanh toán bởi:')) {
@@ -1046,7 +1084,7 @@ export const DataService = {
       table_id: tableId || null,
       table,
       order_type: orderType,
-      created_by: staffId,
+      created_by: staffId || creator?.id,
       creator,
       status,
       payment_method: paymentMethod,
@@ -1079,7 +1117,7 @@ export const DataService = {
         order_number: orderNumber,
         table_name: resolvedTableName,
         order_type: orderType,
-        created_by: toSafeUUID(staffId),
+        created_by: toSafeUUID(staffId) || toSafeUUID(creator?.id),
         status,
         payment_method: paymentMethod,
         total_amount: totalAmount,

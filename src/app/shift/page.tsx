@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { CashTransaction } from '@/types/database';
 import { DataService } from '@/lib/data-service';
 import { useAuth } from '@/context/AuthContext';
@@ -30,7 +31,8 @@ const EXPENSE_CATEGORIES: { id: string; label: string; icon: string }[] = [
 ];
 
 export default function DailyExpensesPage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { selectedDate, isToday, displayDate } = useDateFilter();
 
   const [expenses, setExpenses] = useState<CashTransaction[]>([]);
@@ -44,6 +46,13 @@ export default function DailyExpensesPage() {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!user) return;
     loadExpenses();
 
     const handleSync = () => loadExpenses();
@@ -119,6 +128,21 @@ export default function DailyExpensesPage() {
 
   const totalExpenseAmount = expenses.reduce((acc, t) => acc + t.amount, 0);
   const maxExpenseAmount = expenses.reduce((max, t) => (t.amount > max ? t.amount : max), 0);
+
+  if (authLoading) {
+    return (
+      <div className="flex-1 min-h-[70vh] flex flex-col items-center justify-center p-6">
+        <div className="w-10 h-10 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 animate-pulse">
+          Đang nạp phiên làm việc...
+        </span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-6 space-y-6">

@@ -26,7 +26,7 @@ export function Navbar() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { user, isOwner, isStaff, isCloud, logout } = useAuth();
-  const { selectedDate, isToday, setSelectedDate, resetToToday, displayDate } = useDateFilter();
+  const { selectedDate, isToday, setSelectedDate, resetToToday, goToPreviousDay, displayDate } = useDateFilter();
 
   const [userDropdown, setUserDropdown] = useState(false);
   const [dateDropdown, setDateDropdown] = useState(false);
@@ -171,23 +171,28 @@ export function Navbar() {
 
                   <div className="flex items-center gap-1.5 pt-1">
                     <button
+                      type="button"
+                      onClick={() => {
+                        goToPreviousDay();
+                      }}
+                      className="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] hover:bg-slate-200 dark:hover:bg-slate-600 active:scale-95 transition-all"
+                      title="Lùi lại 1 ngày so với ngày đang chọn"
+                    >
+                      Hôm qua
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         resetToToday();
                         setDateDropdown(false);
                       }}
-                      className="flex-1 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold text-[11px] hover:bg-amber-100"
+                      className={`flex-1 py-1.5 rounded-lg font-bold text-[11px] transition-all ${
+                        isToday
+                          ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
+                          : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100'
+                      }`}
                     >
                       Hôm nay
-                    </button>
-                    <button
-                      onClick={() => {
-                        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-                        setSelectedDate(yesterday);
-                        setDateDropdown(false);
-                      }}
-                      className="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[11px] hover:bg-slate-200"
-                    >
-                      Hôm qua
                     </button>
                   </div>
                 </div>

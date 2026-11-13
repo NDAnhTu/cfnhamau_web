@@ -97,7 +97,7 @@ export default function AdminDashboardPage() {
 
   // 1. Biểu đồ biến động doanh thu theo khung giờ thực tế
   const hourlyMap: Record<string, number> = {};
-  for (let h = 6; h <= 22; h++) {
+  for (let h = 6; h <= 21; h++) {
     const label = `${h.toString().padStart(2, '0')}:00`;
     hourlyMap[label] = 0;
   }

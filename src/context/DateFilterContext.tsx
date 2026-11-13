@@ -8,6 +8,7 @@ interface DateFilterContextType {
   isToday: boolean;
   setSelectedDate: (date: string) => void;
   resetToToday: () => void;
+  goToPreviousDay: () => void;
   displayDate: string;
 }
 
@@ -44,12 +45,29 @@ export function DateFilterProvider({ children }: { children: React.ReactNode }) 
     setSelectedDate(currentToday);
   };
 
+  const goToPreviousDay = () => {
+    setSelectedDate((prev) => {
+      const [y, m, d] = prev.split('-').map(Number);
+      const prevDate = new Date(y, m - 1, d - 1);
+      const year = prevDate.getFullYear();
+      const month = String(prevDate.getMonth() + 1).padStart(2, '0');
+      const day = String(prevDate.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    });
+  };
+
   const formatDisplayDate = (dStr: string) => {
     if (dStr === todayStr) {
       const [y, m, d] = dStr.split('-');
       return `Hôm nay, ${d}/${m}`;
     }
+    const [ty, tm, td] = todayStr.split('-').map(Number);
+    const yestDate = new Date(ty, tm - 1, td - 1);
+    const yestStr = `${yestDate.getFullYear()}-${String(yestDate.getMonth() + 1).padStart(2, '0')}-${String(yestDate.getDate()).padStart(2, '0')}`;
     const [y, m, d] = dStr.split('-');
+    if (dStr === yestStr) {
+      return `Hôm qua, ${d}/${m}`;
+    }
     return `${d}/${m}/${y}`;
   };
 
@@ -60,6 +78,7 @@ export function DateFilterProvider({ children }: { children: React.ReactNode }) 
         isToday,
         setSelectedDate,
         resetToToday,
+        goToPreviousDay,
         displayDate: formatDisplayDate(selectedDate),
       }}
     >

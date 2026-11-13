@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ActiveTableInfo, Order, OrderItem } from '@/types/database';
 import { formatCurrency, formatTime, getItemAttribution } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { DataService } from '@/lib/data-service';
 import {
   Utensils,
   PlusCircle,
@@ -34,6 +35,7 @@ interface TableGridProps {
     itemName: string,
     reduceOnly?: boolean
   ) => Promise<boolean>;
+  onRenameTable?: (orderId: number, newTableName: string) => Promise<void>;
 }
 
 export function TableGrid({
@@ -44,6 +46,7 @@ export function TableGrid({
   onPrintReceipt,
   onQuickNewTable,
   onDeleteOrderItem,
+  onRenameTable,
 }: TableGridProps) {
   const { user, isOwner } = useAuth();
   const isAdmin = isOwner || user?.role === 'owner';
@@ -54,6 +57,11 @@ export function TableGrid({
   const [selectedTableDetail, setSelectedTableDetail] = useState<ActiveTableInfo | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
 
+  // Sửa tên bàn trực tiếp khi mở modal chi tiết
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingNameValue, setEditingNameValue] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+
   const activeModalTable = selectedTableDetail
     ? tables.find(
         (t) =>
@@ -61,6 +69,60 @@ export function TableGrid({
           t.table.id === selectedTableDetail.table.id
       ) || selectedTableDetail
     : null;
+
+  const handleStartEditingName = () => {
+    if (!activeModalTable) return;
+    setEditingNameValue(activeModalTable.table.name);
+    setIsEditingName(true);
+  };
+
+  const handleSaveTableName = async () => {
+    if (!isEditingName || isSavingName || !activeModalTable?.activeOrder) {
+      setIsEditingName(false);
+      return;
+    }
+    const cleanName = editingNameValue.trim();
+    if (!cleanName || cleanName === activeModalTable.table.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    setIsSavingName(true);
+    try {
+      if (onRenameTable) {
+        await onRenameTable(activeModalTable.activeOrder.id, cleanName);
+      } else {
+        await DataService.transferTable(activeModalTable.activeOrder.id, cleanName);
+      }
+      setSelectedTableDetail((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          table: { ...prev.table, name: cleanName },
+          activeOrder: prev.activeOrder
+            ? { ...prev.activeOrder, table_name: cleanName }
+            : prev.activeOrder,
+        };
+      });
+    } catch (err: any) {
+      console.error('Lỗi đổi tên bàn:', err);
+      alert('Không thể đổi tên bàn: ' + (err.message || 'Lỗi không xác định'));
+    } finally {
+      setIsSavingName(false);
+      setIsEditingName(false);
+    }
+  };
+
+  const handleKeyDownName = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveTableName();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsEditingName(false);
+      setEditingNameValue('');
+    }
+  };
 
   const filtered = tables.filter((t) => {
     if (search.trim()) {
@@ -303,9 +365,27 @@ export function TableGrid({
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <h3 className="font-black text-lg sm:text-xl text-slate-900 dark:text-white leading-tight">
-                    {activeModalTable.table.name}
-                  </h3>
+                  {isEditingName ? (
+                    <input
+                      type="text"
+                      autoFocus
+                      disabled={isSavingName}
+                      value={editingNameValue}
+                      onChange={(e) => setEditingNameValue(e.target.value)}
+                      onBlur={handleSaveTableName}
+                      onKeyDown={handleKeyDownName}
+                      className="font-black text-lg sm:text-xl text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-700/80 px-2 py-0.5 rounded-xl border border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 max-w-[200px] sm:max-w-[260px]"
+                      placeholder="Nhập tên bàn..."
+                    />
+                  ) : (
+                    <h3
+                      onClick={handleStartEditingName}
+                      title="Nhấn vào tên bàn để sửa"
+                      className="font-black text-lg sm:text-xl text-slate-900 dark:text-white leading-tight cursor-pointer hover:text-amber-600 dark:hover:text-amber-400 transition-colors py-0.5 rounded"
+                    >
+                      {activeModalTable.table.name}
+                    </h3>
+                  )}
                   <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                     Đơn {activeModalTable.activeOrder?.order_number}
                   </span>
@@ -322,14 +402,17 @@ export function TableGrid({
                   </span>
                   <span className="flex items-center gap-1">
                     <User className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Mở bàn: <strong className="text-slate-700 dark:text-slate-200">{activeModalTable.activeOrder?.creator?.full_name || 'Nhân viên'}</strong></span>
+                    <span>Tạo bởi: <strong className="text-slate-700 dark:text-slate-200">{activeModalTable.activeOrder?.creator?.full_name || 'Nhân viên'}</strong></span>
                   </span>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setSelectedTableDetail(null)}
+                onClick={() => {
+                  setSelectedTableDetail(null);
+                  setIsEditingName(false);
+                }}
                 className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                 title="Đóng chi tiết"
               >

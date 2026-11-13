@@ -268,6 +268,10 @@ export default function PosPage() {
   };
 
   const handleQuickNewTable = (tblName: string, isTakeaway = false) => {
+    if (!user?.id) {
+      router.replace('/login');
+      return;
+    }
     setTableName(isTakeaway ? 'Mang về' : tblName);
     setOrderType(isTakeaway ? 'takeaway' : 'dine_in');
     setExistingOrderId(null);
@@ -278,6 +282,10 @@ export default function PosPage() {
   };
 
   const handleAddMoreItems = (tableInfo: ActiveTableInfo) => {
+    if (!user?.id) {
+      router.replace('/login');
+      return;
+    }
     setTableName(tableInfo.table.name);
     setOrderType(tableInfo.activeOrder?.order_type || 'dine_in');
     setExistingOrderId(tableInfo.activeOrder?.id || null);
@@ -290,6 +298,10 @@ export default function PosPage() {
   };
 
   const handleCheckoutTableFromGrid = (tableInfo: ActiveTableInfo) => {
+    if (!user?.id) {
+      router.replace('/login');
+      return;
+    }
     if (!tableInfo.activeOrder) return;
     setCheckoutTarget({
       orderId: tableInfo.activeOrder.id,
@@ -391,6 +403,17 @@ export default function PosPage() {
     }
   };
 
+  const handleRenameTable = async (orderId: number, newTableName: string) => {
+    try {
+      await DataService.transferTable(orderId, newTableName);
+      setSuccessBanner(`Đã đổi tên bàn thành "${newTableName}" thành công!`);
+      await loadData();
+      setTimeout(() => setSuccessBanner(null), 1000);
+    } catch (e: any) {
+      alert('Lỗi đổi tên bàn: ' + e.message);
+    }
+  };
+
   // -------------------------------------------------------------
   // CHECKOUT & SAVE PENDING ACTIONS
   // -------------------------------------------------------------
@@ -414,6 +437,10 @@ export default function PosPage() {
 
   const handleSavePending = async () => {
     if (cart.length === 0) return;
+    if (!user?.id) {
+      router.replace('/login');
+      return;
+    }
     setIsSavingPending(true);
     try {
       const isTakeaway = orderType === 'takeaway';
@@ -472,6 +499,10 @@ export default function PosPage() {
 
   const handleCompletePayment = async (paymentMethod: PaymentMethod, notes?: string) => {
     if (!checkoutTarget) return;
+    if (!user?.id) {
+      router.replace('/login');
+      return;
+    }
 
     const confirmationTag = isStaff ? PENDING_PAYMENT_CONFIRMATION_TAG : '';
     const finalOrderNotes = [confirmationTag, notes].filter(Boolean).join(' ').trim() || undefined;
@@ -593,6 +624,7 @@ export default function PosPage() {
           onPrintReceipt={(order) => setReceiptOrder(order)}
           onQuickNewTable={handleQuickNewTable}
           onDeleteOrderItem={handleDeleteOrderItem}
+          onRenameTable={handleRenameTable}
         />
       )}
 

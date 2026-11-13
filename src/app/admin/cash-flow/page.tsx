@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Shift, CashTransaction } from '@/types/database';
 import { DataService } from '@/lib/data-service';
 import { useAuth } from '@/context/AuthContext';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { useDateFilter } from '@/context/DateFilterContext';
+import { formatCurrency, formatDateTime, getLocalDateString } from '@/lib/utils';
 import { AdminNav } from '@/components/admin/AdminNav';
 import {
   WalletCards,
@@ -19,6 +20,7 @@ import {
 
 export default function AdminCashFlowPage() {
   const { user } = useAuth();
+  const { selectedDate, displayDate } = useDateFilter();
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [transactions, setTransactions] = useState<CashTransaction[]>([]);
 
@@ -43,7 +45,7 @@ export default function AdminCashFlowPage() {
       window.removeEventListener('app:pull-to-refresh', handleSync);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [selectedDate]);
 
   const loadData = async () => {
     const [allShifts, allTxns] = await Promise.all([
@@ -51,7 +53,17 @@ export default function AdminCashFlowPage() {
       DataService.getCashTransactions(),
     ]);
     setShifts(allShifts);
-    setTransactions(allTxns);
+
+    // Chỉ hiển thị thu chi của ngày đang được chọn
+    const filteredTxns = allTxns.filter((t) => {
+      if (!selectedDate) return true;
+      const matchDateStr = t.transaction_date === selectedDate;
+      const matchCreatedAt = t.created_at?.startsWith(selectedDate);
+      const matchLocal = getLocalDateString(t.created_at) === selectedDate;
+      return matchDateStr || matchCreatedAt || matchLocal;
+    });
+
+    setTransactions(filteredTxns);
   };
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
@@ -68,6 +80,7 @@ export default function AdminCashFlowPage() {
       amount,
       description: description.trim(),
       createdBy: user?.id || '',
+      transactionDate: selectedDate,
     });
 
     setIsModalOpen(false);
@@ -154,14 +167,14 @@ export default function AdminCashFlowPage() {
             <span>Sổ Nhật Ký Thu Chi ({transactions.length} phiếu)</span>
           </h2>
           <p className="text-xs text-slate-400">
-            Chi tiết các khoản tiền đá, phụ liệu, sinh hoạt phí và thu ngoài
+            Chi tiết các khoản tiền đá, phụ liệu, sinh hoạt phí và thu ngoài trong ngày ({displayDate})
           </p>
         </div>
 
         {/* Mobile View: Cards */}
         <div className="md:hidden space-y-2.5">
           {transactions.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs">Chưa có giao dịch thu chi nào.</div>
+            <div className="p-8 text-center text-slate-400 text-xs">Chưa có giao dịch thu chi nào trong ngày {displayDate}.</div>
           ) : (
             transactions.map((t) => (
               <div
@@ -210,7 +223,14 @@ export default function AdminCashFlowPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-              {transactions.map((t) => (
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
+                    Chưa có giao dịch thu chi nào trong ngày {displayDate}.
+                  </td>
+                </tr>
+              ) : (
+                transactions.map((t) => (
                 <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
                   <td className="py-3 px-3 text-slate-500">
                     {formatDateTime(t.created_at)}
@@ -246,7 +266,8 @@ export default function AdminCashFlowPage() {
                     </span>
                   </td>
                 </tr>
-              ))}
+              ))
+            )}
             </tbody>
           </table>
         </div>

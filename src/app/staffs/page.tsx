@@ -43,11 +43,7 @@ export default function StaffLoginPage() {
       if (res.success) {
         setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng...');
         setTimeout(() => {
-          if (res.role === 'owner') {
-            router.push('/admin/dashboard');
-          } else {
-            router.push('/pos');
-          }
+          router.push('/pos');
         }, 800);
       } else {
         setErrorMsg(res.error || 'Email hoặc mật khẩu không chính xác');
