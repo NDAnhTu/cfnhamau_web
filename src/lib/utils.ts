@@ -166,3 +166,13 @@ export function getVietQRUrl({
   const encodedName = encodeURIComponent(accountName);
   return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.jpg?amount=${amount}&addInfo=${memo}&accountName=${encodedName}`;
 }
+
+export function removeVietnameseTones(str?: string | null): string {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
