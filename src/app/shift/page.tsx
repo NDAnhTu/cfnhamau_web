@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { CashTransaction } from '@/types/database';
 import { DataService } from '@/lib/data-service';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +21,20 @@ import {
   Coffee,
   X,
   FileText,
+  ShieldAlert,
+  ShoppingBag,
+  Lock,
+  Edit3,
+  ChevronRight,
+  Clock,
+  Tag,
 } from 'lucide-react';
+
+const formatNumberWithDots = (val: string | number): string => {
+  const digits = String(val).replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
 
 const EXPENSE_CATEGORIES: { id: string; label: string; icon: string }[] = [
   { id: 'tien_da', label: 'Mua đá bi', icon: '🧊' },
@@ -45,6 +59,15 @@ export default function DailyExpensesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Modal detail & edit expense
+  const [selectedExpense, setSelectedExpense] = useState<CashTransaction | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [editAmountStr, setEditAmountStr] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editErrorMsg, setEditErrorMsg] = useState('');
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/login');
@@ -52,7 +75,7 @@ export default function DailyExpensesPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.role !== 'owner') return;
     loadExpenses();
 
     const handleSync = () => loadExpenses();
@@ -83,7 +106,7 @@ export default function DailyExpensesPage() {
     e.preventDefault();
     setErrorMsg('');
 
-    const amount = Number(amountStr.replace(/[^0-9]/g, '')) || 0;
+    const amount = Number(amountStr.replace(/\D/g, '')) || 0;
     if (amount <= 0) {
       setErrorMsg('Vui lòng nhập số tiền chi lớn hơn 0');
       return;
@@ -93,8 +116,8 @@ export default function DailyExpensesPage() {
       return;
     }
 
-    if (!user) {
-      setErrorMsg('Vui lòng đăng nhập để lập phiếu chi');
+    if (!user || user.role !== 'owner') {
+      setErrorMsg('Chỉ Chủ Quán (Owner) mới có quyền lập phiếu chi');
       return;
     }
 
@@ -120,7 +143,85 @@ export default function DailyExpensesPage() {
     }
   };
 
+  const handleOpenDetailModal = (item: CashTransaction) => {
+    setSelectedExpense(item);
+    setEditAmountStr(formatNumberWithDots(item.amount));
+    setEditDescription(item.description || '');
+    setEditDate(item.transaction_date || item.created_at?.slice(0, 10) || selectedDate);
+    setEditErrorMsg('');
+    setIsDetailModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedExpense) return;
+    setEditErrorMsg('');
+
+    const amount = Number(editAmountStr.replace(/\D/g, '')) || 0;
+    if (amount <= 0) {
+      setEditErrorMsg('Vui lòng nhập số tiền chi lớn hơn 0');
+      return;
+    }
+    if (!editDescription.trim()) {
+      setEditErrorMsg('Vui lòng nhập lý do chi');
+      return;
+    }
+
+    if (!user || user.role !== 'owner') {
+      setEditErrorMsg('Chỉ Chủ Quán (Owner) mới có quyền chỉnh sửa phiếu chi');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      await DataService.updateCashTransaction(selectedExpense.id, {
+        amount,
+        description: editDescription.trim(),
+        category: selectedExpense.category || 'khac',
+        transactionDate: editDate,
+      });
+
+      setIsDetailModalOpen(false);
+      setSelectedExpense(null);
+      await loadExpenses();
+    } catch (err: any) {
+      setEditErrorMsg(err.message || 'Lỗi khi cập nhật phiếu chi');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteFromDetail = async () => {
+    if (!selectedExpense) return;
+    if (!user || user.role !== 'owner') {
+      alert('Chỉ Chủ Quán (Owner) mới có quyền xóa phiếu chi');
+      return;
+    }
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn xóa phiếu chi "${selectedExpense.description}" (${formatCurrency(
+          selectedExpense.amount
+        )})? Hành động này không thể hoàn tác.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await DataService.deleteCashTransaction(selectedExpense.id);
+      setIsDetailModalOpen(false);
+      setSelectedExpense(null);
+      await loadExpenses();
+    } catch (err: any) {
+      alert('Lỗi khi xóa phiếu chi: ' + (err.message || err));
+    }
+  };
+
   const handleDeleteExpense = async (id: number) => {
+    if (!user || user.role !== 'owner') {
+      alert('Chỉ Chủ Quán (Owner) mới có quyền xóa phiếu chi');
+      return;
+    }
     if (!confirm('Bạn có chắc chắn muốn xóa phiếu chi này?')) return;
     await DataService.deleteCashTransaction(id);
     await loadExpenses();
@@ -140,8 +241,46 @@ export default function DailyExpensesPage() {
     );
   }
 
-  if (!user) {
-    return null;
+  // Not logged in or logged in as staff
+  if (!user || user.role !== 'owner') {
+    return (
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200 dark:border-slate-700 text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-black text-slate-900 dark:text-white">
+              Quyền Truy Cập Bị Hạn Chế
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              {user
+                ? `Tài khoản hiện tại (${user.full_name} - Nhân viên) không có quyền truy cập Sổ Quỹ Chi Tiêu. Trang này chỉ dành cho Chủ Quán (Owner).`
+                : 'Bạn chưa đăng nhập. Vui lòng đăng nhập bằng tài khoản Quản trị để tiếp tục.'}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <Link
+              href="/pos"
+              className="w-full py-3 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Về Màn Hình POS Bán Hàng</span>
+            </Link>
+
+            <Link
+              href="/staffs"
+              className="w-full py-3 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all flex items-center justify-center gap-2"
+            >
+              <Lock className="w-4 h-4" />
+              <span>Đăng Nhập Tài Khoản Khác</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -243,34 +382,50 @@ export default function DailyExpensesPage() {
               return (
                 <div
                   key={item.id}
-                  className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors"
+                  onClick={() => handleOpenDetailModal(item)}
+                  className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-750/70 transition-all cursor-pointer group active:bg-slate-100 dark:active:bg-slate-700/60"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-xl flex items-center justify-center shrink-0">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                       {cat?.icon || '📝'}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white text-sm">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-900 dark:text-white text-sm group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                           {item.description || cat?.label || 'Khoản chi'}
                         </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 font-semibold">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 font-semibold shrink-0">
                           {formatTime(item.created_at)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
-                        <User className="w-3 h-3" />
-                        <span>Người lập: <strong>{item.creator?.full_name || 'Nhân viên'}</strong></span>
+                        <User className="w-3 h-3 shrink-0" />
+                        <span className="truncate">Người lập: <strong>{item.creator?.full_name || 'Nhân viên'}</strong></span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <span className="text-base sm:text-lg font-black text-rose-600 dark:text-rose-400 whitespace-nowrap">
                       -{formatCurrency(item.amount)}
                     </span>
                     <button
-                      onClick={() => handleDeleteExpense(item.id)}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetailModal(item);
+                      }}
+                      title="Xem chi tiết & sửa"
+                      className="p-2 rounded-xl text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteExpense(item.id);
+                      }}
                       title="Xóa phiếu chi này"
                       className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                     >
@@ -286,8 +441,8 @@ export default function DailyExpensesPage() {
 
       {/* Modal Create Expense */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
               <h3 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                 <PlusCircle className="w-5 h-5 text-rose-500" />
@@ -315,31 +470,17 @@ export default function DailyExpensesPage() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
                     required
-                    placeholder="VD: 50000"
+                    placeholder="VD: 50.000"
                     value={amountStr}
-                    onChange={(e) => setAmountStr(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    onChange={(e) => setAmountStr(formatNumberWithDots(e.target.value))}
+                    className="w-full pl-4 pr-14 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
-                  <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400">
+                  <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400 pointer-events-none">
                     VNĐ
                   </span>
-                </div>
-
-                {/* Quick amount chips */}
-                <div className="flex items-center gap-1.5 mt-2">
-                  {[20000, 35000, 50000, 100000, 200000].map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setAmountStr(String(val))}
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold hover:bg-slate-200"
-                    >
-                      {val.toLocaleString()}đ
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -376,6 +517,146 @@ export default function DailyExpensesPage() {
                   </>
                 )}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detail & Edit Expense */}
+      {isDetailModalOpen && selectedExpense && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    Chi Tiết & Sửa Phiếu Chi
+                  </h3>
+                  <span className="text-[11px] text-slate-400">
+                    Mã phiếu: #{selectedExpense.id}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsDetailModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Read-only metadata card */}
+            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-400">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                  Người lập phiếu
+                </span>
+                <span className="font-bold text-slate-800 dark:text-white">
+                  {selectedExpense.creator?.full_name || 'Nhân viên'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                  Thời gian tạo
+                </span>
+                <span className="font-bold text-slate-800 dark:text-white">
+                  {formatDateTime(selectedExpense.created_at)}
+                </span>
+              </div>
+            </div>
+
+            {editErrorMsg && (
+              <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{editErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                  Số tiền chi (VNĐ) *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    placeholder="VD: 50.000"
+                    value={editAmountStr}
+                    onChange={(e) => setEditAmountStr(formatNumberWithDots(e.target.value))}
+                    className="w-full pl-4 pr-14 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400 pointer-events-none">
+                    VNĐ
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                  Lý do chi *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="VD: Mua 2 bao đá bi, mua sữa đặc, tiền điện..."
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                  Ngày ghi nhận chi
+                </label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={handleDeleteFromDetail}
+                  className="px-3.5 py-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Xóa Phiếu Chi</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsDetailModalOpen(false)}
+                    className="px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
+                  >
+                    Đóng
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingEdit}
+                    className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/30 transition-all flex items-center gap-1.5"
+                  >
+                    {isSavingEdit ? (
+                      <span>Đang lưu...</span>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Lưu Thay Đổi</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </form>
           </div>
         </div>

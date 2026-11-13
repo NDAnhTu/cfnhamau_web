@@ -1774,6 +1774,44 @@ export const DataService = {
     return newTxn;
   },
 
+  async updateCashTransaction(
+    id: number,
+    data: {
+      amount?: number;
+      category?: string;
+      description?: string;
+      transactionDate?: string;
+    }
+  ): Promise<void> {
+    if (this.isCloudConnected()) {
+      const supabase = createClient();
+      const payload: any = {};
+      if (data.amount !== undefined) payload.amount = data.amount;
+      if (data.category !== undefined) payload.category = data.category;
+      if (data.description !== undefined) payload.description = data.description;
+      if (data.transactionDate !== undefined) payload.transaction_date = data.transactionDate;
+      const { error } = await supabase.from('cash_transactions').update(payload).eq('id', id);
+      if (error) {
+        console.error('Error updating cash transaction in Supabase:', error);
+        throw new Error(error.message || 'Lỗi khi cập nhật phiếu chi trên cloud');
+      }
+    }
+    const list = getLocal<CashTransaction[]>(STORAGE_KEYS.CASH, initialCashTransactions);
+    const updated = list.map((t) => {
+      if (t.id === id) {
+        return {
+          ...t,
+          amount: data.amount !== undefined ? data.amount : t.amount,
+          category: data.category !== undefined ? data.category : t.category,
+          description: data.description !== undefined ? data.description : t.description,
+          transaction_date: data.transactionDate !== undefined ? data.transactionDate : t.transaction_date,
+        };
+      }
+      return t;
+    });
+    setLocal(STORAGE_KEYS.CASH, updated);
+  },
+
   async deleteCashTransaction(id: number): Promise<void> {
     if (this.isCloudConnected()) {
       const supabase = createClient();
