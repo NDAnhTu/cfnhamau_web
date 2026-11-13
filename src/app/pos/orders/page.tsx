@@ -6,7 +6,7 @@ import { Order } from '@/types/database';
 import { DataService, isAwaitingPaymentConfirmation } from '@/lib/data-service';
 import { useAuth } from '@/context/AuthContext';
 import { useDateFilter } from '@/context/DateFilterContext';
-import { formatCurrency, formatTime, formatDateTime, getLocalDateString, removeVietnameseTones } from '@/lib/utils';
+import { formatCurrency, formatTime, formatDateTime, getLocalDateString, removeVietnameseTones, formatItemNoteForDisplay } from '@/lib/utils';
 import { PosAdminTabs } from '@/components/pos/PosAdminTabs';
 import {
   Receipt,
@@ -394,9 +394,9 @@ export default function StaffOrdersPage() {
                           Kích cỡ: {item.size_name}
                         </p>
                       )}
-                      {item.notes && (
+                      {item.notes && formatItemNoteForDisplay(item.notes) && (
                         <p className="text-[11px] text-slate-400 italic">
-                          Ghi chú: {item.notes}
+                          Ghi chú: {formatItemNoteForDisplay(item.notes)}
                         </p>
                       )}
                     </div>
@@ -535,9 +535,9 @@ export default function StaffOrdersPage() {
                         Kích cỡ: {item.size_name}
                       </p>
                     )}
-                    {item.notes && (
+                    {item.notes && formatItemNoteForDisplay(item.notes) && (
                       <p className="text-[11px] text-slate-400 italic">
-                        Ghi chú: {item.notes}
+                        Ghi chú: {formatItemNoteForDisplay(item.notes)}
                       </p>
                     )}
                   </div>

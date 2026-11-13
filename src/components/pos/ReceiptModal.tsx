@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Order } from '@/types/database';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrency, formatDateTime, formatItemNoteForDisplay } from '@/lib/utils';
 import { Printer, X, Check } from 'lucide-react';
 
 interface ReceiptModalProps {
@@ -95,9 +95,9 @@ export function ReceiptModal({ order, isOpen, onClose }: ReceiptModalProps) {
                     {formatCurrency(item.subtotal)}
                   </span>
                 </div>
-                {item.notes && (
+                {item.notes && formatItemNoteForDisplay(item.notes) && (
                   <p className="text-[9px] text-gray-500 italic pl-1">
-                    * {item.notes}
+                    * {formatItemNoteForDisplay(item.notes)}
                   </p>
                 )}
               </div>

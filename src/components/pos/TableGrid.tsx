@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   Trash2,
   X,
+  CalendarClock,
 } from 'lucide-react';
 
 interface TableGridProps {
@@ -36,6 +37,7 @@ interface TableGridProps {
     reduceOnly?: boolean
   ) => Promise<boolean>;
   onRenameTable?: (orderId: number, newTableName: string) => Promise<void>;
+  onRecordDebt?: (tableInfo: ActiveTableInfo) => Promise<void>;
 }
 
 export function TableGrid({
@@ -47,6 +49,7 @@ export function TableGrid({
   onQuickNewTable,
   onDeleteOrderItem,
   onRenameTable,
+  onRecordDebt,
 }: TableGridProps) {
   const { user, isOwner } = useAuth();
   const isAdmin = isOwner || user?.role === 'owner';
@@ -56,6 +59,7 @@ export function TableGrid({
   const [newTableName, setNewTableName] = useState('');
   const [selectedTableDetail, setSelectedTableDetail] = useState<ActiveTableInfo | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
+  const [isProcessingDebt, setIsProcessingDebt] = useState(false);
 
   // Sửa tên bàn trực tiếp khi mở modal chi tiết
   const [isEditingName, setIsEditingName] = useState(false);
@@ -189,6 +193,34 @@ export function TableGrid({
     }
   };
 
+  const handleDebtClick = async () => {
+    if (!activeModalTable?.activeOrder || isProcessingDebt) return;
+    const tableName = activeModalTable.table.name;
+    const totalMoney = formatCurrency(activeModalTable.totalAmount);
+
+    const confirmed = confirm(
+      `Xác nhận ghi nợ cho bàn "${tableName}" (tạm tính ${totalMoney})?\n\n` +
+      `• Đơn hàng sẽ tự động chuyển sang ngày mai.\n` +
+      `• Toàn bộ các món của ngày hôm trước sẽ được lưu chú thích ngày và giờ mua.`
+    );
+    if (!confirmed) return;
+
+    setIsProcessingDebt(true);
+    try {
+      if (onRecordDebt) {
+        await onRecordDebt(activeModalTable);
+      } else {
+        await DataService.recordOrderDebt(activeModalTable.activeOrder.id, user?.id);
+      }
+      setSelectedTableDetail(null);
+    } catch (err: any) {
+      console.error('Lỗi ghi nợ:', err);
+      alert('Không thể ghi nợ: ' + (err.message || 'Lỗi không xác định'));
+    } finally {
+      setIsProcessingDebt(false);
+    }
+  };
+
   const handleQuickTakeaway = () => {
     onQuickNewTable('Mang về', true);
     setNewTableName('');
@@ -254,6 +286,11 @@ export function TableGrid({
                         Mang đi
                       </span>
                     )}
+                    {item.activeOrder?.notes?.includes('[Ghi nợ]') && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
+                        Ghi nợ
+                      </span>
+                    )}
                   </div>
                   <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-0.5 block">
                     Đơn {item.activeOrder?.order_number}
@@ -280,16 +317,27 @@ export function TableGrid({
                   {item.activeOrder?.order_type === 'takeaway' ? 'Món mang đi' : 'Món đang dùng'} ({item.itemsCount} ly):
                 </span>
                 <div className="space-y-0.5 max-h-24 overflow-y-auto pr-1">
-                  {item.activeOrder?.items?.map((drink) => (
-                    <div key={drink.id} className="flex justify-between items-center text-slate-700 dark:text-slate-100">
-                      <span className="truncate pr-1">
-                        <strong className="text-amber-600 dark:text-amber-400">{drink.quantity}x</strong> {drink.item_name} {drink.size_name && `(${drink.size_name})`}
-                      </span>
-                      <span className="font-semibold text-slate-500 dark:text-slate-400 text-[11px]">
-                        {formatCurrency(drink.subtotal)}
-                      </span>
-                    </div>
-                  ))}
+                  {item.activeOrder?.items?.map((drink) => {
+                    const { purchaseTime } = getItemAttribution(
+                      drink,
+                      item.activeOrder?.creator?.full_name
+                    );
+                    return (
+                      <div key={drink.id} className="flex justify-between items-center text-slate-700 dark:text-slate-100">
+                        <span className="truncate pr-1">
+                          <strong className="text-amber-600 dark:text-amber-400">{drink.quantity}x</strong> {drink.item_name} {drink.size_name && `(${drink.size_name})`}
+                          {purchaseTime && (
+                            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold ml-1">
+                              ({purchaseTime})
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-semibold text-slate-500 dark:text-slate-400 text-[11px]">
+                          {formatCurrency(drink.subtotal)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -394,6 +442,11 @@ export function TableGrid({
                       Mang đi
                     </span>
                   )}
+                  {activeModalTable.activeOrder?.notes?.includes('[Ghi nợ]') && (
+                    <span className="text-xs px-2.5 py-0.5 rounded-full font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
+                      Đơn ghi nợ
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-1">
@@ -427,7 +480,7 @@ export function TableGrid({
               </div>
               <div className="space-y-2.5 divide-y divide-slate-100 dark:divide-slate-700/60">
                 {activeModalTable.activeOrder?.items?.map((item, idx) => {
-                  const { staffName, itemNote } = getItemAttribution(
+                  const { staffName, itemNote, purchaseTime } = getItemAttribution(
                     item,
                     activeModalTable.activeOrder?.creator?.full_name
                   );
@@ -447,12 +500,18 @@ export function TableGrid({
                                 </span>
                               )}
                             </div>
-                            {/* Staff attribution & item notes */}
+                            {/* Staff attribution & purchase time & item notes */}
                             <div className="flex flex-wrap items-center gap-1.5 mt-1">
                               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                                 <User className="w-2.5 h-2.5 text-amber-500" />
                                 <span>Thêm bởi: <strong className="text-slate-800 dark:text-slate-100">{staffName}</strong></span>
                               </span>
+                              {purchaseTime && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                                  <Clock className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400" />
+                                  <span>Ngày mua: <strong>{purchaseTime}</strong></span>
+                                </span>
+                              )}
                               {itemNote && (
                                 <span className="inline-flex items-center text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/60">
                                   {itemNote}
@@ -515,25 +574,39 @@ export function TableGrid({
             </div>
 
             {/* Modal Actions */}
-            <div className="grid grid-cols-2 gap-2 pt-3">
+            <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pt-3`}>
               <button
                 type="button"
                 onClick={() => {
                   onAddMoreItems(activeModalTable);
                   setSelectedTableDetail(null);
                 }}
-                className="py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-bold text-xs hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5"
+                className="py-2.5 px-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 font-bold text-xs hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5"
               >
                 <PlusCircle className="w-4 h-4 text-amber-600" />
                 <span>Gọi thêm món</span>
               </button>
+
+              {isAdmin && (
+                <button
+                  type="button"
+                  disabled={isProcessingDebt}
+                  onClick={handleDebtClick}
+                  className="py-2.5 px-2 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/50 border border-purple-300 dark:border-purple-800 text-purple-800 dark:text-purple-300 font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+                  title="Ghi nợ cho khách quen - Chuyển đơn sang ngày hôm sau và lưu ngày giờ từng món"
+                >
+                  <CalendarClock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span>{isProcessingDebt ? 'Đang lưu...' : 'Ghi nợ'}</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
                   onCheckoutTable(activeModalTable);
                   setSelectedTableDetail(null);
                 }}
-                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5"
+                className="py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5"
               >
                 <CreditCard className="w-4 h-4" />
                 <span>Thanh toán</span>

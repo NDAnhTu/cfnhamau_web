@@ -1067,13 +1067,19 @@ export const DataService = {
     const orderNumber = generateNextOrderNumber(orders);
 
     const currentLocalTimestamp = getLocalTimestamp();
+    const currentOrderDate = parseOrderDate(currentLocalTimestamp);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const createdTimeStr = `${pad(currentOrderDate.getHours())}:${pad(currentOrderDate.getMinutes())} ${pad(currentOrderDate.getDate())}/${pad(currentOrderDate.getMonth() + 1)}/${currentOrderDate.getFullYear()}`;
+
     const creatorName = creator?.full_name || 'Nhân viên';
     const formatInitialItemNote = (rawNote?: string | null) => {
-      const tag = `Thêm bởi: ${creatorName}`;
+      const staffTag = `Thêm bởi: ${creatorName}`;
+      const timeTag = `Thêm lúc: ${createdTimeStr}`;
+      const tags = `${staffTag} | ${timeTag}`;
       if (rawNote && rawNote.trim()) {
-        return `${rawNote.trim()} | ${tag}`;
+        return `${rawNote.trim()} | ${tags}`;
       }
-      return tag;
+      return tags;
     };
 
     const newOrder: Order = {
@@ -1197,12 +1203,19 @@ export const DataService = {
     const newTotal = order.total_amount + addedAmount;
     const newFinal = Math.max(0, newTotal - order.discount_amount);
 
+    const currentLocalTimestamp = getLocalTimestamp();
+    const itemDateObj = parseOrderDate(currentLocalTimestamp);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const addedTimeStr = `${pad(itemDateObj.getHours())}:${pad(itemDateObj.getMinutes())} ${pad(itemDateObj.getDate())}/${pad(itemDateObj.getMonth() + 1)}/${itemDateObj.getFullYear()}`;
+
     const formatAddedItemNote = (rawNote?: string | null) => {
-      const tag = `Thêm bởi: ${resolvedStaffName}`;
+      const staffTag = `Thêm bởi: ${resolvedStaffName}`;
+      const timeTag = `Thêm lúc: ${addedTimeStr}`;
+      const tags = `${staffTag} | ${timeTag}`;
       if (rawNote && rawNote.trim()) {
-        return `${rawNote.trim()} | ${tag}`;
+        return `${rawNote.trim()} | ${tags}`;
       }
-      return tag;
+      return tags;
     };
 
     const newOrderItems: OrderItem[] = newItems.map((item, idx) => ({
@@ -1369,6 +1382,106 @@ export const DataService = {
     const updated = orders.map((o) => (o.id === orderId ? updatedOrder : o));
     setLocal(STORAGE_KEYS.ORDERS, updated);
     return updatedOrder;
+  },
+
+  async recordOrderDebt(
+    orderId: number,
+    adminId?: string
+  ): Promise<{ order: Order; nextDateStr: string }> {
+    const orders = await this.getOrders();
+    const order = orders.find((o) => Number(o.id) === Number(orderId));
+    if (!order) throw new Error('Không tìm thấy đơn hàng #' + orderId);
+    if (order.status !== 'pending') throw new Error('Chỉ có thể ghi nợ cho đơn hàng đang phục vụ');
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const orderDateStr = getLocalDateString(order.created_at);
+    const todayStr = getLocalDateString();
+
+    // Xác định ngày tiếp theo cần chuyển đến:
+    // Nếu đơn hàng tạo từ hôm nay hoặc tương lai -> cộng thêm 1 ngày.
+    // Nếu đơn hàng ở ngày quá khứ -> chuyển sang ngày mai so với hôm nay.
+    const baseDateStr = orderDateStr >= todayStr ? orderDateStr : todayStr;
+    const [y, m, d] = baseDateStr.split('-').map(Number);
+    const nextDay = new Date(y, m - 1, d + 1);
+    const nextDateStr = `${nextDay.getFullYear()}-${pad(nextDay.getMonth() + 1)}-${pad(nextDay.getDate())}`;
+    const nextCreatedAt = `${nextDateStr}T07:00:00`;
+
+    // Tính thời gian gọi món mặc định từ created_at của đơn nếu món chưa có mốc thời gian riêng
+    const currentOrderDate = parseOrderDate(order.created_at);
+    const defaultTimeStr = `${pad(currentOrderDate.getHours())}:${pad(currentOrderDate.getMinutes())} ${pad(currentOrderDate.getDate())}/${pad(currentOrderDate.getMonth() + 1)}/${currentOrderDate.getFullYear()}`;
+
+    // Chú thích ngày giờ mua cho toàn bộ các món hiện tại chưa có chú thích ngày mua
+    const updatedItems = (order.items || []).map((item) => {
+      const rawNotes = item.notes || '';
+      // Nếu món này đã có chú thích Ngày mua từ các ngày trước thì GIỮ NGUYÊN mốc thời gian đó
+      if (/(?:Ngày mua|Mua lúc|Mua):\s*[^|]+/i.test(rawNotes)) {
+        return item;
+      }
+
+      let purchaseTime = defaultTimeStr;
+      const addedMatch = rawNotes.match(/Thêm lúc:\s*([^|]+)/i);
+      if (addedMatch && addedMatch[1]?.trim()) {
+        purchaseTime = addedMatch[1].trim();
+      }
+
+      const cleanedNotes = rawNotes
+        .replace(/(?:\|?\s*)?Thêm lúc:\s*[^|]+/gi, '')
+        .replace(/^\|+|\|+$/g, '')
+        .trim();
+
+      const newTag = `Ngày mua: ${purchaseTime}`;
+      const finalItemNotes = cleanedNotes ? `${cleanedNotes} | ${newTag}` : newTag;
+
+      return {
+        ...item,
+        notes: finalItemNotes,
+      };
+    });
+
+    // Cập nhật nhãn [Ghi nợ] vào ghi chú đơn hàng
+    let finalOrderNotes = order.notes || '';
+    if (!finalOrderNotes.includes('[Ghi nợ]')) {
+      finalOrderNotes = finalOrderNotes ? `${finalOrderNotes} | [Ghi nợ]` : '[Ghi nợ]';
+    }
+
+    const updatedOrder: Order = {
+      ...order,
+      created_at: nextCreatedAt,
+      notes: finalOrderNotes,
+      items: updatedItems,
+    };
+
+    if (this.isCloudConnected()) {
+      const supabase = createClient();
+      const { error: orderErr } = await supabase
+        .from('orders')
+        .update({
+          created_at: nextCreatedAt,
+          notes: finalOrderNotes,
+        })
+        .eq('id', orderId);
+
+      if (orderErr) {
+        console.error('Lỗi khi ghi nợ trên Supabase:', orderErr);
+        throw new Error('Lỗi Supabase khi ghi nợ: ' + orderErr.message);
+      }
+
+      // Cập nhật chú thích ngày giờ mua vào bảng order_items
+      for (const item of updatedItems) {
+        const origItem = (order.items || []).find((i) => i.id === item.id);
+        if (origItem && origItem.notes !== item.notes) {
+          await supabase
+            .from('order_items')
+            .update({ notes: item.notes })
+            .eq('id', item.id);
+        }
+      }
+    }
+
+    const updatedOrdersList = orders.map((o) => (o.id === orderId ? updatedOrder : o));
+    setLocal(STORAGE_KEYS.ORDERS, updatedOrdersList);
+
+    return { order: updatedOrder, nextDateStr };
   },
 
   async splitAndPayOrder({

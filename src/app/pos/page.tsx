@@ -414,6 +414,24 @@ export default function PosPage() {
     }
   };
 
+  const handleRecordDebt = async (tableInfo: ActiveTableInfo) => {
+    if (!tableInfo.activeOrder) return;
+    const orderId = tableInfo.activeOrder.id;
+    const tableName = tableInfo.table.name;
+
+    try {
+      const result = await DataService.recordOrderDebt(orderId, user?.id);
+      const [y, m, d] = result.nextDateStr.split('-');
+      setSuccessBanner(
+        `Đã ghi nợ thành công! Đơn hàng bàn "${tableName}" đã được chuyển sang ngày ${d}/${m}/${y}.`
+      );
+      await loadData();
+      setTimeout(() => setSuccessBanner(null), 3000);
+    } catch (e: any) {
+      alert('Lỗi ghi nợ đơn hàng: ' + e.message);
+    }
+  };
+
   // -------------------------------------------------------------
   // CHECKOUT & SAVE PENDING ACTIONS
   // -------------------------------------------------------------
@@ -625,6 +643,7 @@ export default function PosPage() {
           onQuickNewTable={handleQuickNewTable}
           onDeleteOrderItem={handleDeleteOrderItem}
           onRenameTable={handleRenameTable}
+          onRecordDebt={handleRecordDebt}
         />
       )}
 

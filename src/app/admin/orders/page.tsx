@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order, Profile, OrderStatus, PaymentMethod } from '@/types/database';
 import { DataService, isAwaitingPaymentConfirmation } from '@/lib/data-service';
-import { formatCurrency, formatDateTime, parseOrderDate } from '@/lib/utils';
+import { formatCurrency, formatDateTime, parseOrderDate, formatItemNoteForDisplay } from '@/lib/utils';
 import { AdminNav } from '@/components/admin/AdminNav';
 import { useAuth } from '@/context/AuthContext';
 import * as XLSX from 'xlsx';
@@ -578,9 +578,9 @@ export default function AdminOrdersPage() {
                         Size: {item.size_name}
                       </span>
                     )}
-                    {item.notes && (
+                    {item.notes && formatItemNoteForDisplay(item.notes) && (
                       <span className="text-[11px] text-slate-400 italic block">
-                        Ghi chú: {item.notes}
+                        Ghi chú: {formatItemNoteForDisplay(item.notes)}
                       </span>
                     )}
                   </div>

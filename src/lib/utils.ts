@@ -74,21 +74,56 @@ export function parseOrderDate(dateInput?: string | null | Date): Date {
 export function getItemAttribution(
   item: { notes?: string | null },
   orderCreatorName?: string | null
-): { staffName: string; itemNote: string } {
+): { staffName: string; itemNote: string; purchaseTime?: string } {
   const rawNotes = item.notes || '';
-  const match = rawNotes.match(/(?:Thêm bởi|Bởi):\s*([^|]+)/i);
-  if (match) {
-    const staffName = match[1].trim();
-    const itemNote = rawNotes
-      .replace(/(?:\|?\s*)?(?:Thêm bởi|Bởi):\s*[^|]+/gi, '')
-      .replace(/^\||\|$/g, '')
-      .trim();
-    return { staffName, itemNote };
+  let staffName = orderCreatorName || 'Người mở bàn';
+  const staffMatch = rawNotes.match(/(?:Thêm bởi|Bởi):\s*([^|]+)/i);
+  if (staffMatch) {
+    staffName = staffMatch[1].trim();
   }
+
+  let purchaseTime: string | undefined = undefined;
+  const purchaseMatch = rawNotes.match(/(?:Ngày mua|Mua lúc|Mua):\s*([^|]+)/i);
+  if (purchaseMatch) {
+    purchaseTime = purchaseMatch[1].trim();
+  }
+
+  let cleanNote = rawNotes
+    .replace(/(?:\|?\s*)?(?:Thêm bởi|Bởi):\s*[^|]+/gi, '')
+    .replace(/(?:\|?\s*)?(?:Ngày mua|Mua lúc|Mua):\s*[^|]+/gi, '')
+    .replace(/(?:\|?\s*)?Thêm lúc:\s*[^|]+/gi, '')
+    .replace(/^\|+|\|+$/g, '')
+    .trim();
+
+  cleanNote = cleanNote.replace(/\s*\|\s*\|+/g, ' | ').trim();
+
   return {
-    staffName: orderCreatorName || 'Người mở bàn',
-    itemNote: rawNotes.trim(),
+    staffName,
+    itemNote: cleanNote,
+    purchaseTime,
   };
+}
+
+export function formatItemDateTime(dateInput?: string | null | Date): string {
+  if (!dateInput) return '--';
+  const d = parseOrderDate(dateInput);
+  if (isNaN(d.getTime())) return '--';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  return `${hours}:${minutes} ${day}/${month}/${year}`;
+}
+
+export function formatItemNoteForDisplay(notes?: string | null): string {
+  if (!notes) return '';
+  return notes
+    .replace(/(?:\|?\s*)?Thêm lúc:\s*[^|]+/gi, '')
+    .replace(/^\|+|\|+$/g, '')
+    .trim()
+    .replace(/\s*\|\s*\|+/g, ' | ');
 }
 
 export function formatDateTime(isoString?: string | null): string {
